@@ -1,0 +1,22 @@
+{
+  "name": "rescuegrid-server",
+  "version": "1.0.0",
+  "description": "RescueGrid: Real-Time Food Surplus Redistribution Network API & In-Memory Engine",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.0",
+    "redis": "^4.7.0",
+    "socket.io": "^4.8.0",
+    "socket.io-client": "^4.8.4"
+  }
+}

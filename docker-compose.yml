@@ -1,0 +1,151 @@
+services:
+  # -------------------------------------------------------------
+  # 1. DATABASE LAYER (PostgreSQL 15)
+  # -------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: rescuegrid_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rescuegrid
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rescuegrid"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      rescuegrid_net:
+        aliases:
+          - postgres
+          - rescuegrid_postgres
+
+  # -------------------------------------------------------------
+  # 2. IN-MEMORY CACHE & EVENT BROKER (Redis 7)
+  # -------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: rescuegrid_redis
+    restart: unless-stopped
+    command: ["redis-server", "--notify-keyspace-events", "Ex"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      rescuegrid_net:
+        aliases:
+          - redis
+          - rescuegrid_redis
+
+  # -------------------------------------------------------------
+  # 3. STATELESS APPLICATION CLUSTER (3 Replicas)
+  # -------------------------------------------------------------
+  api-1:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: rescuegrid_api_1
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@rescuegrid_postgres:5432/rescuegrid"
+      REDIS_URL: "redis://rescuegrid_redis:6379"
+      PORT: 5000
+      JWT_SECRET: "rescuegrid_jwt_super_secret_key_2026"
+      HMAC_SECRET: "rescuegrid_hmac_custody_secret_key_2026"
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      rescuegrid_net:
+        aliases:
+          - api-1
+          - rescuegrid_api_1
+
+  api-2:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: rescuegrid_api_2
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@rescuegrid_postgres:5432/rescuegrid"
+      REDIS_URL: "redis://rescuegrid_redis:6379"
+      PORT: 5000
+      JWT_SECRET: "rescuegrid_jwt_super_secret_key_2026"
+      HMAC_SECRET: "rescuegrid_hmac_custody_secret_key_2026"
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      rescuegrid_net:
+        aliases:
+          - api-2
+          - rescuegrid_api_2
+
+  api-3:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: rescuegrid_api_3
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@rescuegrid_postgres:5432/rescuegrid"
+      REDIS_URL: "redis://rescuegrid_redis:6379"
+      PORT: 5000
+      JWT_SECRET: "rescuegrid_jwt_super_secret_key_2026"
+      HMAC_SECRET: "rescuegrid_hmac_custody_secret_key_2026"
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      rescuegrid_net:
+        aliases:
+          - api-3
+          - rescuegrid_api_3
+
+  # -------------------------------------------------------------
+  # 4. LOAD BALANCER & REVERSE PROXY (Nginx)
+  # -------------------------------------------------------------
+  nginx_lb:
+    image: nginx:alpine
+    container_name: rescuegrid_lb
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api-1
+      - api-2
+      - api-3
+    networks:
+      - rescuegrid_net
+
+networks:
+  rescuegrid_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  pgdata:

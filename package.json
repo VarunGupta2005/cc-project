@@ -1,0 +1,13 @@
+{
+  "name": "rescuegrid-root",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test:concurrency": "node scripts/load_test_concurrency.js",
+    "test:ttl": "node scripts/test_ttl_expiration.js",
+    "test:units": "node scripts/test_all_components.js"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}

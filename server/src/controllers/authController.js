@@ -1,0 +1,155 @@
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { query } from '../config/database.js';
+import { seedShelter } from '../services/redisEngine.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'rescuegrid_jwt_super_secret_key_2026';
+
+export async function register(req, res, next) {
+  try {
+    const { email, password, role, full_name, phone, organization } = req.body;
+
+    if (!email || !password || !role || !full_name) {
+      return res.status(400).json({ error: 'Missing required registration fields' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+
+    const userRes = await query(
+      `INSERT INTO users (email, password_hash, role, full_name, phone)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, email, role, full_name, phone, created_at`,
+      [email.toLowerCase(), password_hash, role, full_name, phone || null]
+    );
+
+    const newUser = userRes.rows[0];
+    let createdOrg = null;
+
+    // If registering an organization (Shelter or Commercial Donor)
+    if (organization && organization.name && organization.latitude && organization.longitude) {
+      const orgRes = await query(
+        `INSERT INTO organizations (user_id, name, org_type, latitude, longitude, capacity_kg, is_verified)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, name, org_type, latitude, longitude, capacity_kg, is_verified`,
+        [
+          newUser.id,
+          organization.name,
+          organization.org_type || role,
+          parseFloat(organization.latitude),
+          parseFloat(organization.longitude),
+          parseFloat(organization.capacity_kg || 100),
+          true,
+        ]
+      );
+      createdOrg = orgRes.rows[0];
+
+      // If it's a shelter, index coordinates into Redis immediately!
+      if (role === 'SHELTER') {
+        await seedShelter(createdOrg.id, createdOrg.longitude, createdOrg.latitude);
+        console.log(`[Redis] Seeded new shelter ${createdOrg.name} into geo:shelters`);
+      }
+    }
+
+    const token = jwt.sign(
+      { id: newUser.id, email: newUser.email, role: newUser.role, org_id: createdOrg?.id },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      token,
+      user: newUser,
+      organization: createdOrg,
+    });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A user with this email already exists' });
+    }
+    next(err);
+  }
+}
+
+export async function login(req, res, next) {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const userRes = await query(
+      `SELECT u.id, u.email, u.password_hash, u.role, u.full_name, u.phone,
+              o.id as org_id, o.name as org_name, o.latitude, o.longitude, o.capacity_kg
+       FROM users u
+       LEFT JOIN organizations o ON o.user_id = u.id
+       WHERE u.email = $1`,
+      [email.toLowerCase()]
+    );
+
+    if (userRes.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const user = userRes.rows[0];
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, org_id: user.org_id },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        full_name: user.full_name,
+        phone: user.phone,
+      },
+      organization: user.org_id
+        ? {
+            id: user.org_id,
+            name: user.org_name,
+            latitude: user.latitude,
+            longitude: user.longitude,
+            capacity_kg: user.capacity_kg,
+          }
+        : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getProfile(req, res, next) {
+  try {
+    const userRes = await query(
+      `SELECT u.id, u.email, u.role, u.full_name, u.phone,
+              o.id as org_id, o.name as org_name, o.latitude, o.longitude, o.capacity_kg
+       FROM users u
+       LEFT JOIN organizations o ON o.user_id = u.id
+       WHERE u.id = $1`,
+      [req.user.id]
+    );
+
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user: userRes.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+}
