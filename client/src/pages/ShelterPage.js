@@ -14,10 +14,12 @@ import {
   PlusCircle,
   Trash2,
   Utensils,
+  XCircle,
 } from 'lucide-react';
 import {
   fetchNearbyListings,
   claimFoodListing,
+  cancelClaimFoodListing,
   confirmDelivery,
   fetchAllListings,
   fetchRecipientRequests,
@@ -26,6 +28,8 @@ import {
 } from '../services/api';
 import { getSocket } from '../services/socket';
 import ShelterRadarMap from '../components/ShelterRadarMap';
+import ClaimQuantityModal from '../components/ClaimQuantityModal';
+import CancelClaimModal from '../components/CancelClaimModal';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -53,6 +57,15 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const [loading, setLoading] = useState(true);
   const [claimError, setClaimError] = useState(null);
   const [confirmingId, setConfirmingId] = useState(null);
+
+  // Partial / Full Claiming Modal State
+  const [claimingListing, setClaimingListing] = useState(null);
+  const [claimingLoading, setClaimingLoading] = useState(false);
+
+  // Claim Cancellation Modal State
+  const [cancellingDelivery, setCancellingDelivery] = useState(null);
+  const [cancellingLoading, setCancellingLoading] = useState(false);
+  const [cancelError, setCancelError] = useState(null);
 
   // Active Food Demands / Requirements State
   const [myRequests, setMyRequests] = useState([]);
@@ -182,6 +195,8 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
 
     socket.on('food:new_alert', refreshData);
     socket.on('food:claimed', refreshData);
+    socket.on('food:partially_claimed', refreshData);
+    socket.on('food:reopened', refreshData);
     socket.on('food:expired', refreshData);
     socket.on('delivery:update', refreshData);
 
@@ -191,6 +206,8 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
       clearInterval(syncTimer);
       socket.off('food:new_alert', refreshData);
       socket.off('food:claimed', refreshData);
+      socket.off('food:partially_claimed', refreshData);
+      socket.off('food:reopened', refreshData);
       socket.off('food:expired', refreshData);
       socket.off('delivery:update', refreshData);
     };
@@ -204,17 +221,48 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     loadData(newLat, newLng, radiusKm);
   };
 
-  const handleClaim = async (listingId) => {
+  const openClaimModal = (item) => {
+    setClaimError(null);
+    setClaimingListing(item);
+  };
+
+  const handleConfirmClaim = async (claimKg) => {
+    if (!claimingListing) return;
+    setClaimingLoading(true);
     setClaimError(null);
     try {
-      const data = await claimFoodListing(listingId, activeShelterId, session?.token);
-      if (data.verification_token) {
-        onOpenTokenModal(data.verification_token, listingId);
+      const data = await claimFoodListing(claimingListing.id, activeShelterId, session?.token, claimKg);
+      const token = data.handover?.verification_code || data.verification_token;
+      if (token) {
+        onOpenTokenModal(token, claimingListing.id);
       }
+      setClaimingListing(null);
       await loadData();
       setActiveSegment('deliveries');
     } catch (err) {
       setClaimError(err.message);
+    } finally {
+      setClaimingLoading(false);
+    }
+  };
+
+  const handleOpenCancelModal = (delivery) => {
+    setCancelError(null);
+    setCancellingDelivery(delivery);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancellingDelivery) return;
+    setCancellingLoading(true);
+    setCancelError(null);
+    try {
+      await cancelClaimFoodListing(cancellingDelivery.id, activeShelterId, session?.token);
+      setCancellingDelivery(null);
+      await loadData();
+    } catch (err) {
+      setCancelError(err.message);
+    } finally {
+      setCancellingLoading(false);
     }
   };
 
@@ -354,7 +402,8 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                   radiusKm={radiusKm}
                   listings={availableListings}
                   claimedListings={claimedDeliveries}
-                  onClaim={handleClaim}
+                  currentShelterId={activeShelterId}
+                  onClaim={openClaimModal}
                   height="440px"
                 />
               </CardContent>
@@ -466,84 +515,128 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                 Available Surplus Batches ({availableListings.length})
               </div>
 
-              {availableListings.map((item) => (
-                <div key={item.id} className="batch-card">
-                  <div className="batch-card-header">
-                    <div>
-                      <div className="batch-title">{item.food_type}</div>
-                      <div className="batch-meta-row" style={{ marginTop: '0.25rem' }}>
-                        <MapPin size={13} />
-                        <span>{item.pickup_address}</span>
-                      </div>
-                    </div>
+              {availableListings.map((item) => {
+                const remKg = item.quantity_remaining !== undefined ? parseFloat(item.quantity_remaining) : parseFloat(item.quantity_kg || 0);
+                const totalKg = parseFloat(item.quantity_kg || remKg);
+                const isPartial = remKg < totalKg;
 
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      {item.dietary_type && (
-                        <Badge variant="outline" style={{ fontSize: '0.7rem' }}>
-                          {item.dietary_type}
+                const isMyPriority1 = activeShelterId && item.priority_tier_1_recipient && item.priority_tier_1_recipient === activeShelterId;
+                const tier2List = item.priority_tier_2_recipients ? item.priority_tier_2_recipients.split(',') : [];
+                const isMyPriority2 = activeShelterId && tier2List.includes(activeShelterId);
+
+                const isTier1Locked = item.current_tier === 1 && item.priority_tier_1_recipient && !isMyPriority1;
+                const isTier2Locked = item.current_tier === 2 && item.priority_tier_1_recipient && !isMyPriority1 && !isMyPriority2;
+                const isLocked = isTier1Locked || isTier2Locked;
+                const lockMinsLeft = Math.max(1, Math.ceil((item.tier_seconds_remaining || 0) / 60));
+
+                return (
+                  <div key={item.id} className="batch-card">
+                    <div className="batch-card-header">
+                      <div>
+                        <div className="batch-title">{item.food_type}</div>
+                        <div className="batch-meta-row" style={{ marginTop: '0.25rem' }}>
+                          <MapPin size={13} />
+                          <span>{item.pickup_address}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Cascading Priority Tier Badges */}
+                        {isMyPriority1 && item.current_tier === 1 && (
+                          <Badge variant="success" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#047857', border: '1px solid #10b981', fontSize: '0.72rem' }}>
+                            ⭐ Priority Match for You ({lockMinsLeft}m window)
+                          </Badge>
+                        )}
+                        {isLocked && (
+                          <Badge variant="destructive" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#991b1b', border: '1px solid #f87171', fontSize: '0.72rem' }}>
+                            🔒 Priority Reserved ({lockMinsLeft}m left)
+                          </Badge>
+                        )}
+                        {item.current_tier === 2 && (isMyPriority1 || isMyPriority2) && (
+                          <Badge variant="info" style={{ fontSize: '0.72rem' }}>
+                            ⚡ Top-5 Priority Match
+                          </Badge>
+                        )}
+
+                        {item.dietary_type && (
+                          <Badge variant="outline" style={{ fontSize: '0.7rem' }}>
+                            {item.dietary_type}
+                          </Badge>
+                        )}
+                        <Badge variant="outline">
+                          {item.distance_km ? `${item.distance_km} km away` : 'Near you'}
                         </Badge>
-                      )}
-                      <Badge variant="outline">
-                        {item.distance_km ? `${item.distance_km} km away` : 'Near you'}
-                      </Badge>
-                      <Badge variant="warning">
-                        <Clock size={11} />
-                        <span>{formatTtl(item.ttl_remaining_seconds)}</span>
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Feasibility & Transit Slack Indicator */}
-                  {(() => {
-                    const dist = parseFloat(item.distance_km) || 2.0;
-                    const oneWayMins = Math.ceil((dist / 25.0) * 60);
-                    const roundTripMins = oneWayMins * 2;
-                    const totalOpMins = roundTripMins + 30; // 15m pickup + 15m delivery handling
-                    const ttlMins = Math.floor((item.ttl_remaining_seconds || 7200) / 60);
-                    const slackMins = ttlMins - totalOpMins;
-                    const isFeasible = slackMins >= 0;
-
-                    return (
-                      <div style={{
-                        marginTop: '0.4rem',
-                        padding: '0.45rem 0.65rem',
-                        backgroundColor: isFeasible ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                        borderRadius: 'var(--radius)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        fontSize: '0.74rem'
-                      }}>
-                        <span style={{ color: isFeasible ? '#065f46' : '#991b1b', fontWeight: 600 }}>
-                          {isFeasible ? '✓ Feasible Self-Pickup' : '⚠ Tight Deadline Buffer'}
-                        </span>
-                        <span style={{ color: 'var(--muted-foreground)' }}>
-                          Round-trip ETA: <b>~{roundTripMins}m</b> &bull; Slack Buffer: <b>{slackMins > 0 ? `+${slackMins}m` : `${slackMins}m`}</b>
-                        </span>
+                        <Badge variant="warning">
+                          <Clock size={11} />
+                          <span>{formatTtl(item.ttl_remaining_seconds)}</span>
+                        </Badge>
                       </div>
-                    );
-                  })()}
-
-                  <div className="batch-card-footer">
-                    <div>
-                      <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--primary)' }}>
-                        {item.quantity_kg} kg
-                      </span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginLeft: '0.35rem' }}>
-                        prepared food available
-                      </span>
                     </div>
 
-                    <Button
-                      variant="success"
-                      onClick={() => handleClaim(item.id)}
-                    >
-                      <Zap size={14} />
-                      <span>Claim Surplus Batch</span>
-                    </Button>
+                    {/* Feasibility & Transit Slack Indicator */}
+                    {(() => {
+                      const dist = parseFloat(item.distance_km) || 2.0;
+                      const oneWayMins = Math.ceil((dist / 25.0) * 60);
+                      const roundTripMins = oneWayMins * 2;
+                      const totalOpMins = roundTripMins + 30; // 15m pickup + 15m delivery handling
+                      const ttlMins = Math.floor((item.ttl_remaining_seconds || 7200) / 60);
+                      const slackMins = ttlMins - totalOpMins;
+                      const isFeasible = slackMins >= 0;
+
+                      return (
+                        <div style={{
+                          marginTop: '0.4rem',
+                          padding: '0.45rem 0.65rem',
+                          backgroundColor: isFeasible ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                          borderRadius: 'var(--radius)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '0.74rem'
+                        }}>
+                          <span style={{ color: isFeasible ? '#065f46' : '#991b1b', fontWeight: 600 }}>
+                            {isFeasible ? '✓ Feasible Self-Pickup' : '⚠ Tight Deadline Buffer'}
+                          </span>
+                          <span style={{ color: 'var(--muted-foreground)' }}>
+                            Round-trip ETA: <b>~{roundTripMins}m</b> &bull; Slack Buffer: <b>{slackMins > 0 ? `+${slackMins}m` : `${slackMins}m`}</b>
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="batch-card-footer">
+                      <div>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#16a34a' }}>
+                          {remKg} kg
+                        </span>
+                        {isPartial ? (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginLeft: '0.35rem' }}>
+                            left of {totalKg} kg
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginLeft: '0.35rem' }}>
+                            prepared food available
+                          </span>
+                        )}
+                        {isPartial && (
+                          <Badge variant="outline" style={{ marginLeft: '0.45rem', color: '#16a34a', borderColor: '#16a34a', fontSize: '0.68rem' }}>
+                            PARTIALLY CLAIMED
+                          </Badge>
+                        )}
+                      </div>
+
+                      <Button
+                        variant="success"
+                        disabled={isLocked}
+                        onClick={() => openClaimModal(item)}
+                      >
+                        <Zap size={14} />
+                        <span>{isLocked ? `Priority Reserved (${lockMinsLeft}m)` : isPartial ? 'Claim Remaining / Partial' : 'Claim Surplus Batch'}</span>
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -921,17 +1014,36 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                     {isClaimed && (
                       <div style={{
                         display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: '0.45rem',
-                        fontSize: '0.8125rem',
-                        color: 'var(--warning-foreground)',
+                        flexWrap: 'wrap',
+                        gap: '0.75rem',
+                        marginTop: '0.5rem',
                         backgroundColor: 'var(--warning-bg)',
-                        padding: '0.5rem 0.75rem',
+                        padding: '0.65rem 0.85rem',
                         borderRadius: 'var(--radius-sm)',
                         border: '1px solid var(--warning-border)'
                       }}>
-                        <Clock size={14} />
-                        <span>Waiting for courier to arrive at donor kitchen and verify OTP.</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8125rem', color: 'var(--warning-foreground)' }}>
+                          <Clock size={14} />
+                          <span>Awaiting courier dispatch / physical pickup verification.</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenCancelModal(delivery)}
+                          style={{
+                            color: '#dc2626',
+                            borderColor: '#fca5a5',
+                            backgroundColor: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                          }}
+                        >
+                          <XCircle size={13} />
+                          <span>Cancel Claim</span>
+                        </Button>
                       </div>
                     )}
 
@@ -991,6 +1103,32 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Claim Quantity Selection Modal (Full or Partial Split) */}
+      <ClaimQuantityModal
+        listing={claimingListing}
+        isOpen={Boolean(claimingListing)}
+        onClose={() => {
+          setClaimingListing(null);
+          setClaimError(null);
+        }}
+        onConfirmClaim={handleConfirmClaim}
+        claiming={claimingLoading}
+        claimError={claimError}
+      />
+
+      {/* Claim Cancellation Modal with Preserved Shelf-Life */}
+      <CancelClaimModal
+        delivery={cancellingDelivery}
+        isOpen={Boolean(cancellingDelivery)}
+        onClose={() => {
+          setCancellingDelivery(null);
+          setCancelError(null);
+        }}
+        onConfirmCancel={handleConfirmCancel}
+        cancelling={cancellingLoading}
+        error={cancelError}
+      />
     </div>
   );
 }

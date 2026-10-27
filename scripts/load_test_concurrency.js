@@ -5,6 +5,8 @@
  * =============================================================
  */
 
+import { query, pool } from '../server/src/config/database.js';
+
 const API_BASE = process.env.API_URL || 'http://localhost'; // Hits Nginx port 80 (or port 5000)
 
 async function runConcurrencyProof() {
@@ -14,6 +16,11 @@ async function runConcurrencyProof() {
   console.log('=============================================================\n');
 
   try {
+    // Reset test shelter capacities so benchmark is deterministic
+    try {
+      await query('UPDATE organizations SET available_capacity_kg = capacity_kg WHERE is_verified = TRUE');
+    } catch {}
+
     // Step 1: Create a fresh food listing
     console.log('[Step 1] Creating new surplus food batch...');
     const createRes = await fetch(`${API_BASE}/api/listings`, {
@@ -44,11 +51,15 @@ async function runConcurrencyProof() {
     const numRequests = 50;
     const promises = [];
 
+    // Resolve eligible priority recipient for the created batch
+    const nearbyRes = await fetch(`${API_BASE}/api/listings/nearby?lat=12.9716&lng=77.5946&radius_km=15`);
+    const nearbyData = await nearbyRes.json();
+    const createdItem = (nearbyData.listings || []).find((l) => l.id === listingId);
+    const simulatedShelterId = createdItem?.priority_tier_1_recipient || 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+
     const startTime = Date.now();
 
     for (let i = 1; i <= numRequests; i++) {
-      const simulatedShelterId = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
-      
       const p = fetch(`${API_BASE}/api/listings/${listingId}/claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,6 +122,10 @@ async function runConcurrencyProof() {
     }
   } catch (err) {
     console.error('[Benchmark Error]', err);
+  } finally {
+    try {
+      await pool.end();
+    } catch {}
   }
 }
 

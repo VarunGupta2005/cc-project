@@ -3,6 +3,7 @@ import {
   createListing,
   getNearbyListings,
   claimListing,
+  cancelClaimListing,
   getAllListings,
   getListingRecommendations,
 } from '../controllers/listingController.js';
@@ -34,5 +35,12 @@ router.post('/:id/claim', (req, res, next) => {
   }
   next();
 }, claimListing);
+
+router.post('/:id/cancel-claim', (req, res, next) => {
+  if (req.headers.authorization) {
+    return authenticate(req, res, next);
+  }
+  next();
+}, cancelClaimListing);
 
 export default router;

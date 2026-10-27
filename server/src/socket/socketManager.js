@@ -40,6 +40,12 @@ export function initSocketManager(httpServer) {
           ioInstance.emit('food:new_alert', parsed);
         } else if (parsed.event === 'FOOD_CLAIMED') {
           ioInstance.emit('food:claimed', parsed);
+        } else if (parsed.event === 'FOOD_PARTIALLY_CLAIMED') {
+          ioInstance.emit('food:claimed', parsed);
+          ioInstance.emit('food:partially_claimed', parsed);
+        } else if (parsed.event === 'FOOD_REOPENED') {
+          ioInstance.emit('food:new_alert', parsed);
+          ioInstance.emit('food:reopened', parsed);
         } else if (parsed.event === 'FOOD_EXPIRED') {
           ioInstance.emit('food:expired', parsed);
         } else if (parsed.event === 'DELIVERY_UPDATE') {

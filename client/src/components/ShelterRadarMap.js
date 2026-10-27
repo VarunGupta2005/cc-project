@@ -156,6 +156,7 @@ export default function ShelterRadarMap({
   radiusKm = 15,
   listings = [],
   claimedListings = [],
+  currentShelterId = null,
   onClaim,
   height = '440px',
 }) {
@@ -286,10 +287,58 @@ export default function ShelterRadarMap({
             const lng = parseFloat(item.pickup_lng);
             if (isNaN(lat) || isNaN(lng)) return null;
 
+            const remKg = item.quantity_remaining !== undefined ? parseFloat(item.quantity_remaining) : parseFloat(item.quantity_kg || 0);
+            const totalKg = parseFloat(item.quantity_kg || remKg);
+            const isPartial = remKg < totalKg;
+
+            const isMyPriority1 = currentShelterId && item.priority_tier_1_recipient && item.priority_tier_1_recipient === currentShelterId;
+            const tier2List = item.priority_tier_2_recipients ? item.priority_tier_2_recipients.split(',') : [];
+            const isMyPriority2 = currentShelterId && tier2List.includes(currentShelterId);
+
+            const isTier1Locked = item.current_tier === 1 && item.priority_tier_1_recipient && !isMyPriority1;
+            const isTier2Locked = item.current_tier === 2 && item.priority_tier_1_recipient && !isMyPriority1 && !isMyPriority2;
+            const isLocked = isTier1Locked || isTier2Locked;
+            const lockMinsLeft = Math.max(1, Math.ceil((item.tier_seconds_remaining || 0) / 60));
+
             return (
               <Marker key={item.id} position={[lat, lng]} icon={createFoodIcon()}>
                 <Popup>
-                  <div style={{ padding: '0.25rem', minWidth: '210px', fontFamily: 'inherit' }}>
+                  <div style={{ padding: '0.25rem', minWidth: '220px', fontFamily: 'inherit' }}>
+                    {/* Priority Tier Badges */}
+                    {isMyPriority1 && item.current_tier === 1 && (
+                      <div style={{
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                        color: '#065f46',
+                        padding: '0.2rem 0.45rem',
+                        borderRadius: '4px',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        marginBottom: '0.4rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem'
+                      }}>
+                        <span>⭐ Priority Match for You ({lockMinsLeft}m window)</span>
+                      </div>
+                    )}
+
+                    {isLocked && (
+                      <div style={{
+                        backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                        color: '#991b1b',
+                        padding: '0.2rem 0.45rem',
+                        borderRadius: '4px',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        marginBottom: '0.4rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem'
+                      }}>
+                        <span>🔒 Priority Reserved (Opens in {lockMinsLeft}m)</span>
+                      </div>
+                    )}
+
                     <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--foreground)' }}>
                       {item.food_type}
                     </div>
@@ -310,7 +359,9 @@ export default function ShelterRadarMap({
                         fontWeight: 600,
                       }}
                     >
-                      <span style={{ color: 'var(--foreground)' }}>⚖️ {item.quantity_kg} kg</span>
+                      <span style={{ color: 'var(--foreground)' }}>
+                        ⚖️ {remKg} kg {isPartial ? `left of ${totalKg}kg` : ''}
+                      </span>
                       <span style={{ color: '#10b981' }}>
                         {item.distance_km ? `${item.distance_km} km away` : 'In Range'}
                       </span>
@@ -319,26 +370,27 @@ export default function ShelterRadarMap({
                     {onClaim && (
                       <button
                         type="button"
-                        onClick={() => onClaim(item.id)}
+                        disabled={isLocked}
+                        onClick={() => onClaim(item)}
                         style={{
                           marginTop: '0.6rem',
                           width: '100%',
                           padding: '0.45rem 0.75rem',
-                          backgroundColor: '#16a34a',
+                          backgroundColor: isLocked ? '#9ca3af' : '#16a34a',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: '6px',
                           fontWeight: 600,
                           fontSize: '0.78rem',
-                          cursor: 'pointer',
+                          cursor: isLocked ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: '0.35rem',
-                          boxShadow: '0 2px 6px rgba(22, 163, 74, 0.4)',
+                          boxShadow: isLocked ? 'none' : '0 2px 6px rgba(22, 163, 74, 0.4)',
                         }}
                       >
-                        <span>Claim Surplus Batch</span>
+                        <span>{isLocked ? `Locked (${lockMinsLeft}m left)` : isPartial ? 'Claim Remaining / Partial' : 'Claim Batch (Full or Split)'}</span>
                       </button>
                     )}
                   </div>

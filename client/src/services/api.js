@@ -84,19 +84,41 @@ export async function createFoodListing(data, customToken) {
   return await res.json();
 }
 
-export async function claimFoodListing(listingId, shelterId, customToken) {
+export async function claimFoodListing(listingId, shelterId, customToken, claimKg = null) {
   const token = customToken || localStorage.getItem('rg_token');
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
+  const bodyPayload = { shelter_id: shelterId };
+  if (claimKg !== null && claimKg !== undefined && claimKg !== '') {
+    bodyPayload.claim_kg = parseFloat(claimKg);
+  }
+
   const res = await fetch(`${API_BASE}/api/listings/${listingId}/claim`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(bodyPayload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to claim batch');
+  }
+  return data;
+}
+
+export async function cancelClaimFoodListing(listingId, shelterId, customToken) {
+  const token = customToken || localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/listings/${listingId}/cancel-claim`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ shelter_id: shelterId }),
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || 'Failed to claim batch');
+    throw new Error(data.error || 'Failed to cancel claim');
   }
   return data;
 }
