@@ -68,22 +68,34 @@ const createFoodIcon = () =>
 function FitRadarBounds({ center, radiusKm }) {
   const map = useMap();
 
+  const centerLat = center?.[0];
+  const centerLng = center?.[1];
+
   useEffect(() => {
-    if (center && center[0] && center[1] && radiusKm) {
+    if (centerLat && centerLng && radiusKm) {
       try {
-        const circle = L.circle(center, { radius: radiusKm * 1000 });
-        // Apply 20% margin buffer so the scan circle fits comfortably with breathing room
-        map.fitBounds(circle.getBounds().pad(0.20), {
-          padding: [30, 30],
+        map.invalidateSize();
+        // 25% margin buffer so the scan circle fits comfortably with breathing room
+        const effectiveRadiusKm = parseFloat(radiusKm) * 1.25;
+
+        // 1 deg latitude is ~111 km; 1 deg longitude at latitude lat is ~111 * cos(lat) km
+        const latRad = (centerLat * Math.PI) / 180;
+        const deltaLat = effectiveRadiusKm / 111.0;
+        const deltaLng = effectiveRadiusKm / Math.max(0.001, 111.0 * Math.cos(latRad));
+
+        const southWest = [centerLat - deltaLat, centerLng - deltaLng];
+        const northEast = [centerLat + deltaLat, centerLng + deltaLng];
+
+        map.fitBounds([southWest, northEast], {
+          padding: [25, 25],
           maxZoom: 15,
           animate: true,
         });
       } catch (err) {
-        // Fallback to simple pan
-        map.setView(center, radiusKm > 30 ? 10 : 12);
+        console.error('FitRadarBounds error:', err);
       }
     }
-  }, [center, radiusKm, map]);
+  }, [centerLat, centerLng, radiusKm, map]);
 
   return null;
 }
