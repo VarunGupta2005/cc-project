@@ -1,5 +1,62 @@
 :root {
-  /* Shadcn UI Dark Theme Tokens (Default) */
+  /* Shadcn UI Modern Light Mode Tokens */
+  --background: #f8fafc;        /* Slate-50 clean canvas */
+  --foreground: #0f172a;        /* Slate-900 crisp primary text */
+
+  --card: #ffffff;              /* Crisp pure white */
+  --card-foreground: #0f172a;
+
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --primary: #2563eb;           /* Modern Blue (Apple/Shadcn) */
+  --primary-foreground: #ffffff;
+  --primary-hover: #1d4ed8;
+
+  --secondary: #f1f5f9;         /* Slate-100 */
+  --secondary-foreground: #334155;
+  --secondary-hover: #e2e8f0;
+
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;  /* Slate-500 */
+
+  --accent: #eff6ff;            /* Blue-50 */
+  --accent-foreground: #1e40af; /* Blue-800 */
+
+  --destructive: #ef4444;       /* Red-500 */
+  --destructive-foreground: #ffffff;
+  --destructive-bg: #fef2f2;
+
+  --success: #10b981;           /* Emerald-500 */
+  --success-foreground: #ffffff;
+  --success-bg: #ecfdf5;
+  --success-border: #a7f3d0;
+
+  --warning: #f59e0b;           /* Amber-500 */
+  --warning-foreground: #ffffff;
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+
+  --border: #e2e8f0;            /* Slate-200 */
+  --border-subtle: #f1f5f9;
+  --input: #e2e8f0;
+  --ring: #3b82f6;
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 9999px;
+
+  /* Subtle Shadcn / Apple Elevation Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.07), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+.dark {
+  /* Shadcn UI Dark Theme Tokens */
   --background: #090d16;        /* Deep space charcoal canvas */
   --foreground: #f8fafc;        /* Slate-50 crisp high-contrast text */
 
@@ -41,11 +98,6 @@
   --border-subtle: #162032;
   --input: #1e293b;
   --ring: #3b82f6;
-
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --radius-pill: 9999px;
 
   /* Elevated Dark Mode Drop Shadows */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
@@ -420,12 +472,12 @@ body {
 .brand-tag {
   font-size: 0.65rem;
   font-weight: 700;
-  color: #60a5fa;
-  background-color: rgba(59, 130, 246, 0.15);
+  color: var(--primary);
+  background-color: var(--accent);
   padding: 0.15rem 0.45rem;
   border-radius: var(--radius-pill);
   margin-left: auto;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: 1px solid var(--border);
 }
 
 .sidebar-nav {
@@ -440,7 +492,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #64748b;
+  color: var(--muted-foreground);
   padding: 0.5rem 0.65rem 0.25rem 0.65rem;
 }
 
@@ -470,11 +522,11 @@ body {
   background-color: var(--accent);
   color: var(--primary);
   font-weight: 600;
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: var(--border);
 }
 
 .sidebar-link.active svg {
-  color: #3b82f6;
+  color: var(--primary);
 }
 
 .sidebar-footer {
@@ -540,7 +592,7 @@ body {
 }
 
 .top-bar {
-  background-color: rgba(15, 23, 42, 0.85);
+  background-color: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
@@ -551,6 +603,10 @@ body {
   position: sticky;
   top: 0;
   z-index: 90;
+}
+
+.dark .top-bar {
+  background-color: rgba(15, 23, 42, 0.85);
 }
 
 .top-bar-title {
@@ -701,13 +757,17 @@ body {
 
 /* Apple Wallet / Shadcn Digital Pass */
 .otp-pass-card {
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   text-align: center;
   position: relative;
   box-shadow: var(--shadow-sm);
+}
+
+.dark .otp-pass-card {
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
 }
 
 .otp-pass-card::before {
@@ -726,28 +786,40 @@ body {
   font-size: 2.25rem;
   font-weight: 800;
   letter-spacing: 0.35rem;
-  color: #60a5fa;
+  color: #1d4ed8;
   padding: 0.75rem 1rem;
   margin: 0.75rem 0;
-  background-color: rgba(59, 130, 246, 0.15);
-  border: 1px dashed #3b82f6;
+  background-color: #eff6ff;
+  border: 1px dashed #93c5fd;
   border-radius: var(--radius);
   display: inline-block;
+}
+
+.dark .otp-digit-display {
+  color: #60a5fa;
+  background-color: rgba(59, 130, 246, 0.15);
+  border: 1px dashed #3b82f6;
 }
 
 /* Modals */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   padding: 1rem;
   animation: fadeIn 0.15s ease-out;
+}
+
+.dark .modal-overlay {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .modal-content {
@@ -778,7 +850,7 @@ body {
   height: 100% !important;
   border-radius: var(--radius);
   z-index: 10;
-  background: #090d16 !important;
+  background: var(--card) !important;
 }
 
 .map-card-container {
@@ -788,18 +860,23 @@ body {
   border: 1px solid var(--border);
 }
 
-/* Leaflet Dark Theme Popups */
+/* In Dark Mode, apply high-contrast dark inversion filter to OpenStreetMap raster tiles */
+.dark .leaflet-tile-pane {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+/* Leaflet Popups Adapts to Both Themes */
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
-  background: #0f172a !important;
-  color: #f8fafc !important;
-  border: 1px solid #1e293b !important;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6) !important;
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-md) !important;
   border-radius: 8px !important;
 }
 
 .leaflet-popup-content {
-  color: #f8fafc !important;
+  color: var(--foreground) !important;
   margin: 10px 14px !important;
   line-height: 1.4 !important;
 }

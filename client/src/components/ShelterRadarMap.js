@@ -169,19 +169,19 @@ export default function ShelterRadarMap({
           overflow: 'hidden',
           border: '1px solid var(--border)',
           boxShadow: 'var(--shadow-sm)',
-          backgroundColor: '#090d16',
+          backgroundColor: 'var(--card)',
         }}
       >
         <MapContainer
           center={center}
           zoom={12}
           scrollWheelZoom={true}
-          style={{ height: '100%', width: '100%', background: '#090d16' }}
+          style={{ height: '100%', width: '100%', background: 'var(--card)' }}
         >
-          {/* CartoDB Dark Matter High-Contrast Night Tiles */}
+          {/* Standard Free OpenStreetMap Basemap (Zero API Key Dependencies) */}
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
           <FitRadarBounds center={center} radiusKm={radiusKm} />
@@ -203,17 +203,17 @@ export default function ShelterRadarMap({
           <Marker position={center} icon={createShelterIcon()}>
             <Popup>
               <div style={{ padding: '0.2rem', minWidth: '170px', fontFamily: 'inherit' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#f8fafc' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--foreground)' }}>
                   {shelterName}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                   🏢 Central Shelter Hub
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 600, marginTop: '0.35rem' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 600, marginTop: '0.35rem' }}>
                   Radar Scan Perimeter: {radiusKm} km
                 </div>
                 {activeClaimed.length > 0 && (
-                  <div style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600, marginTop: '0.2rem' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600, marginTop: '0.2rem' }}>
                     🚚 {activeClaimed.length} Inbound Deliveries Active
                   </div>
                 )}
@@ -245,10 +245,10 @@ export default function ShelterRadarMap({
                           ● ACTIVE DELIVERY ROUTE #{idx + 1}
                         </span>
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f8fafc', marginTop: '0.25rem' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--foreground)', marginTop: '0.25rem' }}>
                         {item.food_type}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                         From: <b>{item.pickup_address}</b> ➔ <b>{shelterName}</b>
                       </div>
                       <div
@@ -258,13 +258,13 @@ export default function ShelterRadarMap({
                           justifyContent: 'space-between',
                           marginTop: '0.45rem',
                           padding: '0.35rem 0.5rem',
-                          backgroundColor: 'rgba(255,255,255,0.06)',
+                          backgroundColor: 'var(--secondary)',
                           borderRadius: '6px',
                           fontSize: '0.72rem',
                           fontWeight: 600,
                         }}
                       >
-                        <span style={{ color: '#f8fafc' }}>⚖️ {item.quantity_kg} kg</span>
+                        <span style={{ color: 'var(--foreground)' }}>⚖️ {item.quantity_kg} kg</span>
                         <span style={{ color: routeColor }}>Status: {item.status}</span>
                       </div>
                     </div>
@@ -278,13 +278,13 @@ export default function ShelterRadarMap({
                       <span style={{ fontSize: '0.72rem', fontWeight: 700, color: routeColor, textTransform: 'uppercase' }}>
                         Pickup Kitchen Gate
                       </span>
-                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#f8fafc', marginTop: '0.2rem' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--foreground)', marginTop: '0.2rem' }}>
                         {item.food_type}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                         📍 {item.pickup_address}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#34d399', marginTop: '0.35rem', fontWeight: 600 }}>
+                      <div style={{ fontSize: '0.72rem', color: '#10b981', marginTop: '0.35rem', fontWeight: 600 }}>
                         Handover Code Verified at Kitchen Gate
                       </div>
                     </div>
@@ -304,10 +304,10 @@ export default function ShelterRadarMap({
               <Marker key={item.id} position={[lat, lng]} icon={createFoodIcon()}>
                 <Popup>
                   <div style={{ padding: '0.25rem', minWidth: '210px', fontFamily: 'inherit' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#f8fafc' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--foreground)' }}>
                       {item.food_type}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                       📍 {item.pickup_address || 'Donor Kitchen'}
                     </div>
 
@@ -318,14 +318,14 @@ export default function ShelterRadarMap({
                         justifyContent: 'space-between',
                         marginTop: '0.5rem',
                         padding: '0.35rem 0.5rem',
-                        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                        backgroundColor: 'var(--secondary)',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
                         fontWeight: 600,
                       }}
                     >
-                      <span style={{ color: '#f8fafc' }}>⚖️ {item.quantity_kg} kg</span>
-                      <span style={{ color: '#34d399' }}>
+                      <span style={{ color: 'var(--foreground)' }}>⚖️ {item.quantity_kg} kg</span>
+                      <span style={{ color: '#10b981' }}>
                         {item.distance_km ? `${item.distance_km} km away` : 'In Range'}
                       </span>
                     </div>

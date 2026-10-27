@@ -191,8 +191,8 @@ export default function LocationPickerMap({
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapEventsHandler position={position} onPositionChange={handlePositionChange} />
           {flyCenter && <MapPanController center={flyCenter} />}
@@ -201,16 +201,16 @@ export default function LocationPickerMap({
 
       {/* Quick Landmark Chips */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Quick Hubs:</span>
+        <span style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)' }}>Quick Hubs:</span>
         {quickHubs.map((hub) => (
           <button
             key={hub.name}
             type="button"
             onClick={() => handleSelectHub(hub)}
             style={{
-              backgroundColor: '#fff',
+              backgroundColor: 'var(--card)',
               border: '1px solid var(--border)',
-              color: 'var(--text-main)',
+              color: 'var(--foreground)',
               padding: '0.2rem 0.5rem',
               borderRadius: 'var(--radius-sm)',
               fontSize: '0.72rem',

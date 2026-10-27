@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Utensils, Building2, Activity } from 'lucide-react';
+import { Utensils, Building2, Activity, Sun, Moon } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import AuthPage from './pages/AuthPage';
 import DonorPage from './pages/DonorPage';
@@ -8,6 +8,7 @@ import MasterMapPage from './pages/MasterMapPage';
 import AccountPage from './pages/AccountPage';
 import TokenModal from './components/TokenModal';
 import { Badge } from './components/ui/badge';
+import { Button } from './components/ui/button';
 import { getStoredSession, clearSession, loginUser, saveSession } from './services/api';
 
 function getHeaderInfo(tab, session) {
@@ -44,6 +45,23 @@ export default function App() {
   });
 
   const [tokenModalData, setTokenModalData] = useState(null);
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('rg_theme') || 'dark';
+  });
+
+  // Apply dark class to <html> element and persist user preference
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('rg_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Clean up legacy query params
   useEffect(() => {
@@ -99,7 +117,35 @@ export default function App() {
 
   if (!session || activeTab === 'auth') {
     return (
-      <div style={{ backgroundColor: 'var(--bg)', minHeight: '100vh', padding: '2rem 1rem' }}>
+      <div style={{ backgroundColor: 'var(--background)', minHeight: '100vh', padding: '2rem 1rem', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: '1.25rem', right: '1.5rem', zIndex: 100 }}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleTheme}
+            style={{
+              gap: '0.45rem',
+              cursor: 'pointer',
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)',
+              color: 'var(--foreground)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun size={15} style={{ color: '#f59e0b' }} />
+                <span style={{ fontWeight: 600 }}>Light Mode</span>
+              </>
+            ) : (
+              <>
+                <Moon size={15} style={{ color: '#6366f1' }} />
+                <span style={{ fontWeight: 600 }}>Dark Mode</span>
+              </>
+            )}
+          </Button>
+        </div>
         <AuthPage onLoginSuccess={handleLoginSuccess} />
       </div>
     );
@@ -124,6 +170,35 @@ export default function App() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            {/* Theme Toggle Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleTheme}
+              style={{
+                gap: '0.45rem',
+                cursor: 'pointer',
+                padding: '0.35rem 0.75rem',
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)',
+                boxShadow: 'var(--shadow-xs)',
+              }}
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun size={14} style={{ color: '#f59e0b' }} />
+                  <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Light Mode</span>
+                </>
+              ) : (
+                <>
+                  <Moon size={14} style={{ color: '#6366f1' }} />
+                  <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Dark Mode</span>
+                </>
+              )}
+            </Button>
+
             <Badge variant="success" style={{ gap: '0.35rem', padding: '0.25rem 0.65rem' }}>
               <Activity size={12} strokeWidth={2.5} />
               <span>3x Replicas Active</span>

@@ -110,17 +110,17 @@ export default function LiveMap() {
         <div className="map-card-container">
           <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
             {/* Render Shelters */}
             {shelters.map((s) => (
               <Marker key={s.id} position={[parseFloat(s.latitude), parseFloat(s.longitude)]} icon={shelterIcon}>
                 <Popup>
-                  <div style={{ color: '#0f172a', padding: '0.2rem' }}>
+                  <div style={{ color: 'var(--foreground)', padding: '0.2rem' }}>
                     <b style={{ fontSize: '0.875rem' }}>{s.name}</b>
-                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                       Type: {s.org_type} &bull; Capacity: {s.capacity_kg} kg
                     </div>
                   </div>
@@ -132,9 +132,9 @@ export default function LiveMap() {
             {donations.map((d) => (
               <Marker key={d.id} position={[parseFloat(d.pickup_lat), parseFloat(d.pickup_lng)]} icon={donorIcon}>
                 <Popup>
-                  <div style={{ color: '#0f172a', padding: '0.2rem' }}>
+                  <div style={{ color: 'var(--foreground)', padding: '0.2rem' }}>
                     <b style={{ fontSize: '0.875rem' }}>{d.food_type}</b>
-                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                       Quantity: <b>{d.quantity_kg} kg</b> &bull; Status: {d.status}
                     </div>
                   </div>
