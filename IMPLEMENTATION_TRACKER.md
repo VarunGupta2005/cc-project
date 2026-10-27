@@ -596,6 +596,31 @@ Append one entry after every meaningful work session. Keep prior entries for tra
 **Tracker sections updated:** Sections 3, 5, 6, 7, 8, 9, 10, 13, 14, 15, 16.  
 **Next recommended task:** Deliver final handoff briefing to the user.
 
+### Session entry — 2026-10-27 (Post-Phase 6 Field Bugfix: Multi-Session Token Desync & Listing Ingestion)
+
+**Goal:** Diagnose and resolve the issue reported by the user where a broadcasted surplus food listing ("shahi paneer") did not appear on the active donor batches list or radar.  
+**Tasks attempted:**
+1. Traced `POST /api/listings` execution through Nginx, API instances, and PostgreSQL ledger.
+2. Discovered root cause: In multi-tab scenarios (e.g. testing donor broadcast in Tab 1 while logged in as a shelter in Tab 2), `localStorage.getItem('rg_token')` was overwritten by the shelter token. The server's `listingController.js` had `const donorId = req.user ? req.user.id : req.body.donor_id`, which overwrote the donor's ID with the shelter's ID, causing the listing to be filtered out of the donor's dashboard.
+3. Updated `listingController.js` to prioritize explicit `req.body.donor_id` and restrict role assignment.
+4. Updated `api.js` to allow passing `customToken` across all authenticated endpoints, and updated `DonorPage.js` and `ShelterPage.js` to pass `session?.token`.
+5. Added `window.addEventListener('storage', ...)` in `App.js` to maintain real-time session synchronization across multiple browser tabs.
+6. Re-linked orphaned test listings in PostgreSQL to donor `varun` (`6be3c41d-96d9-40c7-82b7-2a129eb453b8`).
+7. Cleaned up unused `shelterName` variable in `ShelterPage.js` for zero ESLint compile warnings.
+8. Re-ran all 4 test suites (`test:units`, `test:matching`, `test:concurrency`, `test:ttl`) — all passed 100%.
+9. Committed and pushed fix to GitHub (`c1af03e`).
+
+**Commands run and actual results:**
+- `npm run test:units`: 25 PASSED, 0 FAILED.
+- `npm run test:matching`: 28 PASSED, 0 FAILED.
+- `npm run test:concurrency`: 50 concurrent requests, exactly 1 winner, 49 conflicts, 0 deadlocks.
+- `npm run test:ttl`: 100% keyspace notification caught, pin purged from Redis GEO.
+- `cd client; npm run build`: Compiled successfully with 0 warnings.
+- `git push origin main`: Commit `c1af03e` pushed successfully.
+
+**Acceptance criteria completed:** Listing broadcast and multi-tab session synchronization verified and working end-to-end.  
+**Next recommended task:** Ready for user testing on `http://localhost:3000`.
+
 ---
 
 ## 16. Final handoff summary
