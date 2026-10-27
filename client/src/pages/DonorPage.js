@@ -335,8 +335,8 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                     <div style={{ position: 'relative' }}>
                       <Input
                         type="number"
-                        step="0.5"
-                        min="1"
+                        step="any"
+                        min="0.1"
                         placeholder="25"
                         value={quantityKg}
                         onChange={(e) => setQuantityKg(e.target.value)}
@@ -360,8 +360,8 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                       <div style={{ position: 'relative', width: '120px', flexShrink: 0 }}>
                         <Input
                           type="number"
-                          step="0.5"
-                          min="0.1"
+                          step="any"
+                          min="0"
                           max="72"
                           placeholder="2"
                           value={customHours}

@@ -606,8 +606,8 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                     </label>
                     <input
                       type="number"
-                      step="1"
-                      min="1"
+                      step="any"
+                      min="0.1"
                       placeholder="30"
                       value={reqQuantity}
                       onChange={(e) => setReqQuantity(e.target.value)}
