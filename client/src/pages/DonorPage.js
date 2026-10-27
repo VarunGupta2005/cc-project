@@ -15,7 +15,7 @@ import {
   Leaf,
   Layers,
 } from 'lucide-react';
-import { createFoodListing, fetchAllListings, verifyPickup } from '../services/api';
+import { createFoodListing, fetchAllListings, verifyPickup, fetchListingRecommendations } from '../services/api';
 import { getSocket } from '../services/socket';
 import LocationPickerMap from '../components/LocationPickerMap';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
@@ -29,6 +29,9 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
 
   // Intake Form State
   const [foodType, setFoodType] = useState('Hot Vegetable Biryani & Gravy');
+  const [category, setCategory] = useState('COOKED_MEAL');
+  const [dietaryType, setDietaryType] = useState('VEG');
+  const [safetyDeclared, setSafetyDeclared] = useState(true);
   const [quantityKg, setQuantityKg] = useState('25');
   const [expiryOption, setExpiryOption] = useState('7200'); // 2 hours default
   const [pickupAddress, setPickupAddress] = useState(
@@ -44,6 +47,8 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
   const [pickupOtpMap, setPickupOtpMap] = useState({});
   const [verifyingId, setVerifyingId] = useState(null);
   const [pickupMsg, setPickupMsg] = useState({});
+  const [recsMap, setRecsMap] = useState({});
+  const [loadingRecsId, setLoadingRecsId] = useState(null);
 
   const donorId = session?.user?.id || '11111111-1111-1111-1111-111111111111';
 
@@ -104,6 +109,9 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
         pickup_address: pickupAddress,
         pickup_lat: parseFloat(lat),
         pickup_lng: parseFloat(lng),
+        category,
+        dietary_type: dietaryType,
+        safety_declared: safetyDeclared,
       });
 
       setStatusMsg({
@@ -117,6 +125,26 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
       setStatusMsg({ type: 'error', text: err.message });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleLoadRecs = async (listingId) => {
+    if (recsMap[listingId]) {
+      setRecsMap((prev) => {
+        const next = { ...prev };
+        delete next[listingId];
+        return next;
+      });
+      return;
+    }
+    setLoadingRecsId(listingId);
+    try {
+      const data = await fetchListingRecommendations(listingId);
+      setRecsMap((prev) => ({ ...prev, [listingId]: data.recommendations || [] }));
+    } catch (e) {
+      console.error('Failed to load recommendations', e);
+    } finally {
+      setLoadingRecsId(null);
     }
   };
 
@@ -246,6 +274,57 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                   />
                 </div>
 
+                {/* Category & Dietary Selection */}
+                <div className="workflow-grid" style={{ marginBottom: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">
+                      <span>Food Category</span>
+                      <span className="form-hint">Surplus classification</span>
+                    </label>
+                    <select
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
+                        background: 'var(--background)',
+                        color: 'var(--foreground)',
+                        fontSize: '0.875rem',
+                      }}
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                    >
+                      <option value="COOKED_MEAL">Cooked Prepared Meals</option>
+                      <option value="BAKERY">Bakery & Pastries</option>
+                      <option value="RAW_PRODUCE">Raw Fresh Produce</option>
+                      <option value="PACKAGED">Packaged / Canned Goods</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      <span>Dietary Classification</span>
+                      <span className="form-hint">Recipient safety preference</span>
+                    </label>
+                    <div className="chips-row" style={{ marginTop: '0.15rem' }}>
+                      {[
+                        { label: 'Vegetarian', value: 'VEG' },
+                        { label: 'Non-Vegetarian', value: 'NON_VEG' },
+                        { label: 'Vegan', value: 'VEGAN' },
+                      ].map((chip) => (
+                        <button
+                          key={chip.value}
+                          type="button"
+                          className={`chip-btn ${dietaryType === chip.value ? 'active' : ''}`}
+                          onClick={() => setDietaryType(chip.value)}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="workflow-grid" style={{ marginBottom: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label">
@@ -338,10 +417,38 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                   />
                 </div>
 
+                {/* Food Safety Compliance Checkbox */}
+                <div
+                  style={{
+                    padding: '0.75rem',
+                    backgroundColor: 'var(--muted)',
+                    borderRadius: 'var(--radius)',
+                    marginBottom: '1.25rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    id="safety-declaration"
+                    checked={safetyDeclared}
+                    onChange={(e) => setSafetyDeclared(e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <label
+                    htmlFor="safety-declaration"
+                    style={{ fontSize: '0.8rem', cursor: 'pointer', color: 'var(--foreground)', lineHeight: 1.4 }}
+                  >
+                    <b>Food Safety Declaration:</b> I confirm that this surplus food was safely prepared and maintained at proper temperature, remains unserved, and is fit for charitable redistribution.
+                  </label>
+                </div>
+
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={submitting}
+                  disabled={submitting || !safetyDeclared}
                   style={{ width: '100%' }}
                 >
                   <Send size={16} />
@@ -481,6 +588,63 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                         <span>{item.status}</span>
                       </Badge>
                     </div>
+
+                    {/* SMART RECOMMENDATIONS DRAWER (When status is AVAILABLE) */}
+                    {item.status === 'AVAILABLE' && (
+                      <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.65rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)' }}>
+                            Algorithm: Proximity + Capacity + Deadline Slack Feasibility
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleLoadRecs(item.id)}
+                            disabled={loadingRecsId === item.id}
+                            style={{ fontSize: '0.75rem', gap: '0.35rem', height: '28px' }}
+                          >
+                            <Sparkles size={12} color="#2563eb" />
+                            <span>{recsMap[item.id] ? 'Hide Matches' : 'Smart Feasible Matches'}</span>
+                          </Button>
+                        </div>
+
+                        {recsMap[item.id] && (
+                          <div style={{ marginTop: '0.65rem' }}>
+                            {recsMap[item.id].length === 0 ? (
+                              <div style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                                No shelters meet all operational constraints (deadline buffer, dietary, or capacity) at this moment.
+                              </div>
+                            ) : (
+                              recsMap[item.id].map((rec, idx) => (
+                                <div
+                                  key={rec.recipient_id}
+                                  style={{
+                                    padding: '0.6rem 0.75rem',
+                                    backgroundColor: idx === 0 ? 'rgba(37, 99, 235, 0.05)' : 'var(--muted)',
+                                    borderRadius: 'var(--radius)',
+                                    marginBottom: '0.45rem',
+                                    border: idx === 0 ? '1px solid rgba(37, 99, 235, 0.25)' : '1px solid transparent',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.82rem', color: idx === 0 ? '#1d4ed8' : 'var(--foreground)' }}>
+                                      #{idx + 1} {rec.recipient_name}
+                                    </span>
+                                    <Badge variant={idx === 0 ? 'info' : 'secondary'} style={{ fontSize: '0.68rem' }}>
+                                      Match Score: {(rec.total_score * 100).toFixed(0)}%
+                                    </Badge>
+                                  </div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>
+                                    {rec.explanation.summary}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* PHYSICAL HANDOVER VERIFICATION GATE (When status is CLAIMED) */}
                     {isClaimed && (

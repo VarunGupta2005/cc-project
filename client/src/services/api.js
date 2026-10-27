@@ -134,3 +134,45 @@ export async function fetchAudits() {
   if (!res.ok) throw new Error('Failed to fetch audits');
   return await res.json();
 }
+
+export async function fetchListingRecommendations(listingId) {
+  const res = await fetch(`${API_BASE}/api/listings/${listingId}/recommendations`);
+  if (!res.ok) throw new Error('Failed to fetch recommendations');
+  return await res.json();
+}
+
+export async function fetchRecipientRequests(orgId) {
+  const url = orgId ? `${API_BASE}/api/requests?org_id=${orgId}` : `${API_BASE}/api/requests`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch recipient requests');
+  return await res.json();
+}
+
+export async function createRecipientRequest(data) {
+  const token = localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/requests`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  const resData = await res.json();
+  if (!res.ok) throw new Error(resData.error || 'Failed to post requirement');
+  return resData;
+}
+
+export async function cancelRecipientRequest(requestId) {
+  const token = localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/requests/${requestId}`, {
+    method: 'DELETE',
+    headers,
+  });
+  const resData = await res.json();
+  if (!res.ok) throw new Error(resData.error || 'Failed to cancel requirement');
+  return resData;
+}

@@ -7,9 +7,9 @@ services:
     container_name: rescuegrid_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: rescuegrid
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-rescuegrid}
     ports:
       - "5432:5432"
     volumes:
@@ -57,12 +57,14 @@ services:
     container_name: rescuegrid_api_1
     restart: unless-stopped
     environment:
-      DATABASE_URL: "postgresql://postgres:password@rescuegrid_postgres:5432/rescuegrid"
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:-password}@rescuegrid_postgres:5432/${POSTGRES_DB:-rescuegrid}"
       REDIS_URL: "redis://rescuegrid_redis:6379"
       PORT: 5000
-      JWT_SECRET: "rescuegrid_jwt_super_secret_key_2026"
-      HMAC_SECRET: "rescuegrid_hmac_custody_secret_key_2026"
+      JWT_SECRET: "${JWT_SECRET:-rescuegrid_jwt_super_secret_key_2026}"
+      HMAC_SECRET: "${HMAC_SECRET:-rescuegrid_hmac_custody_secret_key_2026}"
       NODE_ENV: production
+    volumes:
+      - ./server/src:/app/src:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,12 +83,14 @@ services:
     container_name: rescuegrid_api_2
     restart: unless-stopped
     environment:
-      DATABASE_URL: "postgresql://postgres:password@rescuegrid_postgres:5432/rescuegrid"
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:-password}@rescuegrid_postgres:5432/${POSTGRES_DB:-rescuegrid}"
       REDIS_URL: "redis://rescuegrid_redis:6379"
       PORT: 5000
-      JWT_SECRET: "rescuegrid_jwt_super_secret_key_2026"
-      HMAC_SECRET: "rescuegrid_hmac_custody_secret_key_2026"
+      JWT_SECRET: "${JWT_SECRET:-rescuegrid_jwt_super_secret_key_2026}"
+      HMAC_SECRET: "${HMAC_SECRET:-rescuegrid_hmac_custody_secret_key_2026}"
       NODE_ENV: production
+    volumes:
+      - ./server/src:/app/src:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -105,12 +109,14 @@ services:
     container_name: rescuegrid_api_3
     restart: unless-stopped
     environment:
-      DATABASE_URL: "postgresql://postgres:password@rescuegrid_postgres:5432/rescuegrid"
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:-password}@rescuegrid_postgres:5432/${POSTGRES_DB:-rescuegrid}"
       REDIS_URL: "redis://rescuegrid_redis:6379"
       PORT: 5000
-      JWT_SECRET: "rescuegrid_jwt_super_secret_key_2026"
-      HMAC_SECRET: "rescuegrid_hmac_custody_secret_key_2026"
+      JWT_SECRET: "${JWT_SECRET:-rescuegrid_jwt_super_secret_key_2026}"
+      HMAC_SECRET: "${HMAC_SECRET:-rescuegrid_hmac_custody_secret_key_2026}"
       NODE_ENV: production
+    volumes:
+      - ./server/src:/app/src:ro
     depends_on:
       postgres:
         condition: service_healthy

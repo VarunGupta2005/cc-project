@@ -11,6 +11,8 @@ const CLAIM_LUA_SCRIPT = `
   if current_status == 'AVAILABLE' then
       redis.call('HSET', listing_key, 'status', 'CLAIMED', 'claimed_by', ARGV[1])
       redis.call('ZREM', 'geo:donations', ARGV[2])
+      -- Extend retention to 24 hours so active delivery state is preserved in Redis
+      redis.call('EXPIRE', listing_key, 86400)
       return 1
   else
       return 0
@@ -52,6 +54,11 @@ export async function addDonationToGeo(listingId, lng, lat, ttlSeconds, metadata
     pickup_address: metadata.pickup_address || '',
     pickup_lat: lat.toString(),
     pickup_lng: lng.toString(),
+    category: metadata.category || 'COOKED_MEAL',
+    dietary_type: metadata.dietary_type || 'VEG',
+    pickup_deadline: metadata.pickup_deadline ? new Date(metadata.pickup_deadline).toISOString() : '',
+    consumption_deadline: metadata.consumption_deadline ? new Date(metadata.consumption_deadline).toISOString() : '',
+    safety_declared: metadata.safety_declared !== false ? 'true' : 'false',
     created_at: new Date().toISOString(),
   };
 

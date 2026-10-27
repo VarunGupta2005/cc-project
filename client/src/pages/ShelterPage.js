@@ -11,8 +11,19 @@ import {
   CheckCircle2,
   AlertCircle,
   Zap,
+  PlusCircle,
+  Trash2,
+  Utensils,
 } from 'lucide-react';
-import { fetchNearbyListings, claimFoodListing, confirmDelivery, fetchAllListings } from '../services/api';
+import {
+  fetchNearbyListings,
+  claimFoodListing,
+  confirmDelivery,
+  fetchAllListings,
+  fetchRecipientRequests,
+  createRecipientRequest,
+  cancelRecipientRequest,
+} from '../services/api';
 import { getSocket } from '../services/socket';
 import LocationPickerMap from '../components/LocationPickerMap';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
@@ -42,6 +53,15 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const [loading, setLoading] = useState(true);
   const [claimError, setClaimError] = useState(null);
   const [confirmingId, setConfirmingId] = useState(null);
+
+  // Active Food Demands / Requirements State
+  const [myRequests, setMyRequests] = useState([]);
+  const [reqQuantity, setReqQuantity] = useState('30');
+  const [reqCategory, setReqCategory] = useState('COOKED_MEAL');
+  const [reqDietary, setReqDietary] = useState('VEG');
+  const [reqHours, setReqHours] = useState('6');
+  const [postingReq, setPostingReq] = useState(false);
+  const [reqMsg, setReqMsg] = useState(null);
 
   // Dynamic Radar Location
   const initialLat = parseFloat(session?.org?.latitude) || 12.9800;
@@ -74,9 +94,10 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const loadData = async (lat = radarLatRef.current, lng = radarLngRef.current, radius = radiusKmRef.current) => {
     try {
       setLoading(true);
-      const [nearbyData, allData] = await Promise.all([
+      const [nearbyData, allData, reqData] = await Promise.all([
         fetchNearbyListings(lat, lng, radius),
         fetchAllListings(),
+        fetchRecipientRequests(activeShelterId).catch(() => ({ requests: [] })),
       ]);
 
       setAvailableListings(nearbyData.listings || []);
@@ -90,10 +111,41 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
         (l) => l.claimed_by === activeShelterId && l.status !== 'EXPIRED'
       );
       setClaimedDeliveries(myClaimed);
+      setMyRequests(reqData.requests || []);
     } catch (err) {
       console.error('[ShelterPage Error]', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePostRequest = async (e) => {
+    e.preventDefault();
+    setPostingReq(true);
+    setReqMsg(null);
+    try {
+      await createRecipientRequest({
+        org_id: activeShelterId,
+        quantity_kg: parseFloat(reqQuantity),
+        category: reqCategory,
+        dietary_type: reqDietary,
+        hours_valid: parseFloat(reqHours),
+      });
+      setReqMsg({ type: 'success', text: 'Active food requirement broadcasted to donors & matching engine!' });
+      loadData();
+    } catch (err) {
+      setReqMsg({ type: 'error', text: err.message });
+    } finally {
+      setPostingReq(false);
+    }
+  };
+
+  const handleCancelReq = async (id) => {
+    try {
+      await cancelRecipientRequest(id);
+      loadData();
+    } catch (err) {
+      console.error('Failed to cancel request', err);
     }
   };
 
@@ -180,6 +232,15 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
               {availableListings.length > 0 && (
                 <Badge variant="info" style={{ marginLeft: '0.25rem', fontSize: '0.65rem' }}>
                   {availableListings.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="demand">
+              <Utensils size={14} />
+              <span>Active Food Demand</span>
+              {myRequests.length > 0 && (
+                <Badge variant="warning" style={{ marginLeft: '0.25rem', fontSize: '0.65rem' }}>
+                  {myRequests.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -393,7 +454,12 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {item.dietary_type && (
+                        <Badge variant="outline" style={{ fontSize: '0.7rem' }}>
+                          {item.dietary_type}
+                        </Badge>
+                      )}
                       <Badge variant="outline">
                         {item.distance_km ? `${item.distance_km} km away` : 'Near you'}
                       </Badge>
@@ -403,6 +469,37 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                       </Badge>
                     </div>
                   </div>
+
+                  {/* Feasibility & Transit Slack Indicator */}
+                  {(() => {
+                    const dist = parseFloat(item.distance_km) || 2.0;
+                    const oneWayMins = Math.ceil((dist / 25.0) * 60);
+                    const roundTripMins = oneWayMins * 2;
+                    const totalOpMins = roundTripMins + 30; // 15m pickup + 15m delivery handling
+                    const ttlMins = Math.floor((item.ttl_remaining_seconds || 7200) / 60);
+                    const slackMins = ttlMins - totalOpMins;
+                    const isFeasible = slackMins >= 0;
+
+                    return (
+                      <div style={{
+                        marginTop: '0.4rem',
+                        padding: '0.45rem 0.65rem',
+                        backgroundColor: isFeasible ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                        borderRadius: 'var(--radius)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.74rem'
+                      }}>
+                        <span style={{ color: isFeasible ? '#065f46' : '#991b1b', fontWeight: 600 }}>
+                          {isFeasible ? '✓ Feasible Self-Pickup' : '⚠ Tight Deadline Buffer'}
+                        </span>
+                        <span style={{ color: 'var(--muted-foreground)' }}>
+                          Round-trip ETA: <b>~{roundTripMins}m</b> &bull; Slack Buffer: <b>{slackMins > 0 ? `+${slackMins}m` : `${slackMins}m`}</b>
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   <div className="batch-card-footer">
                     <div>
@@ -429,7 +526,221 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
         </TabsContent>
 
         {/* ========================================================================= */}
-        {/* TAB 2: CLAIMED DELIVERIES & HANDOVER OTP                                  */}
+        {/* TAB 2: ACTIVE FOOD DEMAND & REQUIREMENTS                                  */}
+        {/* ========================================================================= */}
+        <TabsContent value="demand">
+          <Card style={{ marginBottom: '1.25rem' }}>
+            <CardHeader>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: 'var(--radius)',
+                  backgroundColor: 'var(--accent)',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Utensils size={18} />
+                </div>
+                <div>
+                  <CardTitle>Broadcast Active Food Demand</CardTitle>
+                  <CardDescription>
+                    Publish your shelter's current headcount food requirements. The matching engine aligns donations with genuine needs.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              {reqMsg && (
+                <div
+                  style={{
+                    backgroundColor: reqMsg.type === 'success' ? 'var(--success-bg)' : 'var(--destructive-bg)',
+                    border: `1px solid ${reqMsg.type === 'success' ? 'var(--success-border)' : '#fecaca'}`,
+                    padding: '0.75rem 1rem',
+                    borderRadius: 'var(--radius)',
+                    color: reqMsg.type === 'success' ? '#065f46' : '#991b1b',
+                    marginBottom: '1rem',
+                    fontSize: '0.84rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {reqMsg.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                  <span>{reqMsg.text}</span>
+                </div>
+              )}
+
+              <form onSubmit={handlePostRequest}>
+                <div className="workflow-grid" style={{ marginBottom: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">
+                      <span>Quantity Needed (kg)</span>
+                      <span className="form-hint">Kilograms required</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="1"
+                      placeholder="30"
+                      value={reqQuantity}
+                      onChange={(e) => setReqQuantity(e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
+                        background: 'var(--background)',
+                        color: 'var(--foreground)',
+                        fontSize: '0.875rem'
+                      }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      <span>Accepted Category</span>
+                      <span className="form-hint">Type of surplus required</span>
+                    </label>
+                    <select
+                      value={reqCategory}
+                      onChange={(e) => setReqCategory(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
+                        background: 'var(--background)',
+                        color: 'var(--foreground)',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      <option value="COOKED_MEAL">Cooked Prepared Meals</option>
+                      <option value="BAKERY">Bakery & Snacks</option>
+                      <option value="RAW_PRODUCE">Raw Fresh Produce</option>
+                      <option value="PACKAGED">Packaged / Canned Food</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="workflow-grid" style={{ marginBottom: '1.25rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">
+                      <span>Dietary Compatibility</span>
+                      <span className="form-hint">Beneficiary requirement</span>
+                    </label>
+                    <select
+                      value={reqDietary}
+                      onChange={(e) => setReqDietary(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
+                        background: 'var(--background)',
+                        color: 'var(--foreground)',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      <option value="ANY">Any Dietary Type</option>
+                      <option value="VEG">Strictly Vegetarian</option>
+                      <option value="VEGAN">Strictly Vegan</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      <span>Needed Within</span>
+                      <span className="form-hint">Operational window</span>
+                    </label>
+                    <select
+                      value={reqHours}
+                      onChange={(e) => setReqHours(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
+                        background: 'var(--background)',
+                        color: 'var(--foreground)',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      <option value="2">Next 2 Hours (Urgent Dinner)</option>
+                      <option value="4">Next 4 Hours</option>
+                      <option value="6">Next 6 Hours</option>
+                      <option value="12">Next 12 Hours (Today)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <Button type="submit" disabled={postingReq} style={{ width: '100%' }}>
+                  <PlusCircle size={15} />
+                  <span>{postingReq ? 'Broadcasting Need...' : 'Broadcast Food Requirement to Donors'}</span>
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Active Needs List */}
+          <div>
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: 'var(--muted-foreground)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '0.75rem',
+            }}>
+              Current Active Requirements ({myRequests.length})
+            </div>
+
+            {myRequests.length === 0 ? (
+              <Card style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
+                <CardDescription>
+                  No active requirements posted. Post a requirement above so commercial donors and the matching algorithm prioritize your shelter.
+                </CardDescription>
+              </Card>
+            ) : (
+              myRequests.map((req) => (
+                <div key={req.id} className="batch-card" style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                        {req.quantity_kg} kg &bull; {req.category.replace('_', ' ')} ({req.dietary_type})
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
+                        Needed by: {new Date(req.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(req.needed_by).toLocaleDateString()})
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Badge variant={req.status === 'ACTIVE' ? 'warning' : 'secondary'}>
+                        {req.status}
+                      </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCancelReq(req.id)}
+                        style={{ height: '28px', padding: '0 0.5rem', color: '#b91c1c' }}
+                      >
+                        <Trash2 size={13} />
+                        <span>Cancel</span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ========================================================================= */}
+        {/* TAB 3: CLAIMED DELIVERIES & HANDOVER OTP                                  */}
         {/* ========================================================================= */}
         <TabsContent value="deliveries">
           {claimedDeliveries.length === 0 ? (

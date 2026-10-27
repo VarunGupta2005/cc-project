@@ -12,6 +12,8 @@ import authRoutes from './routes/authRoutes.js';
 import listingRoutes from './routes/listingRoutes.js';
 import deliveryRoutes from './routes/deliveryRoutes.js';
 import shelterRoutes from './routes/shelterRoutes.js';
+import requestRoutes from './routes/requestRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
 dotenv.config();
@@ -37,6 +39,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/listings', listingRoutes);
 app.use('/api/deliveries', deliveryRoutes);
 app.use('/api/shelters', shelterRoutes);
+app.use('/api/requests', requestRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Error Handling Middleware
 app.use(errorHandler);

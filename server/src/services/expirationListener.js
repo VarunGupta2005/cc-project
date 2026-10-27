@@ -2,9 +2,39 @@ import { redisSubClient, redisClient } from '../config/redis.js';
 import { removeDonationFromGeo } from './redisEngine.js';
 import { query } from '../config/database.js';
 
+export async function reconcileExpiredListings(io) {
+  try {
+    const expiredRes = await query(
+      `UPDATE food_listings
+       SET status = 'EXPIRED'
+       WHERE status = 'AVAILABLE' AND expires_at < CURRENT_TIMESTAMP
+       RETURNING id`
+    );
+
+    for (const row of expiredRes.rows) {
+      await removeDonationFromGeo(row.id);
+      if (io) {
+        io.emit('food:expired', { listingId: row.id });
+      }
+    }
+
+    if (expiredRes.rowCount > 0) {
+      console.log(`[Reconciliation Daemon] Reconciled ${expiredRes.rowCount} expired listings from PostgreSQL.`);
+    }
+  } catch (err) {
+    console.error('[Reconciliation Daemon Error]', err);
+  }
+}
+
 export async function startExpirationListener(io) {
   try {
-    // Redis Keyspace event for expired keys in database 0
+    // 1. Initial reconciliation on startup
+    await reconcileExpiredListings(io);
+
+    // 2. Periodic reconciliation interval (every 60 seconds)
+    setInterval(() => reconcileExpiredListings(io), 60000);
+
+    // 3. Redis Keyspace event for expired keys in database 0
     const keyspaceChannel = '__keyevent@0__:expired';
 
     await redisSubClient.subscribe(keyspaceChannel, async (expiredKey) => {

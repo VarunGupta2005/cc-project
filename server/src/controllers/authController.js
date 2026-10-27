@@ -31,24 +31,30 @@ export async function register(req, res, next) {
 
     // If registering an organization (Shelter or Commercial Donor)
     if (organization && organization.name && organization.latitude && organization.longitude) {
+      // In production, new organizations must be unverified until audited.
+      // Demo/evaluator mode allows auto-verification if explicitly configured.
+      const shouldAutoVerify = process.env.AUTO_VERIFY_ORGS === 'true' || process.env.NODE_ENV === 'test';
+      const declaredCapacity = parseFloat(organization.capacity_kg) || 50.0;
+
       const orgRes = await query(
-        `INSERT INTO organizations (user_id, name, org_type, latitude, longitude, capacity_kg, is_verified)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, name, org_type, latitude, longitude, capacity_kg, is_verified`,
+        `INSERT INTO organizations (user_id, name, org_type, latitude, longitude, capacity_kg, available_capacity_kg, is_verified)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id, name, org_type, latitude, longitude, capacity_kg, available_capacity_kg, is_verified`,
         [
           newUser.id,
           organization.name,
           organization.org_type || role,
           parseFloat(organization.latitude),
           parseFloat(organization.longitude),
-          parseFloat(organization.capacity_kg || 100),
-          true,
+          declaredCapacity,
+          declaredCapacity,
+          shouldAutoVerify,
         ]
       );
       createdOrg = orgRes.rows[0];
 
-      // If it's a shelter, index coordinates into Redis immediately!
-      if (role === 'SHELTER') {
+      // If it's a verified shelter, index coordinates into Redis immediately
+      if (role === 'SHELTER' && shouldAutoVerify) {
         await seedShelter(createdOrg.id, createdOrg.longitude, createdOrg.latitude);
         console.log(`[Redis] Seeded new shelter ${createdOrg.name} into geo:shelters`);
       }

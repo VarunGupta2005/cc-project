@@ -9,6 +9,7 @@ import {
 } from '../services/redisEngine.js';
 import { generateHandoverToken } from '../services/tokenService.js';
 import { isValidCoordinate } from '../services/geoService.js';
+import { matchListingToRecipients } from '../services/matchingService.js';
 
 export async function createListing(req, res, next) {
   try {
@@ -20,6 +21,14 @@ export async function createListing(req, res, next) {
       pickup_lat,
       pickup_lng,
       pickup_address,
+      category,
+      dietary_type,
+      preparation_time,
+      pickup_deadline,
+      consumption_deadline,
+      storage_condition,
+      allergens,
+      safety_declared,
     } = req.body;
 
     if (!food_type || !quantity_kg || !pickup_lat || !pickup_lng) {
@@ -36,15 +45,30 @@ export async function createListing(req, res, next) {
     }
 
     const cookedTime = cooked_at ? new Date(cooked_at) : new Date();
-    // Default expiry is 2 hours (7200s), but allows custom seconds (e.g. 15s for live demo)
+    const prepTime = preparation_time ? new Date(preparation_time) : cookedTime;
+
+    // Default offer TTL is 2 hours (7200s)
     const ttlSeconds = parseInt(expires_in_seconds) || 7200;
     const expiresTime = new Date(Date.now() + ttlSeconds * 1000);
+
+    // Explicit separate deadlines
+    const pickupDeadline = pickup_deadline ? new Date(pickup_deadline) : expiresTime;
+    const consumptionDeadline = consumption_deadline
+      ? new Date(consumption_deadline)
+      : new Date(pickupDeadline.getTime() + 2 * 3600 * 1000); // 2 hours buffer after pickup
+
+    const foodCategory = category || 'COOKED_MEAL';
+    const dietType = dietary_type || 'VEG';
+    const storageCond = storage_condition || 'AMBIENT';
+    const allergensList = Array.isArray(allergens) ? allergens : [];
+    const isSafetyDeclared = safety_declared !== false;
 
     // 1. Commit to PostgreSQL (Durable persistence)
     const dbRes = await query(
       `INSERT INTO food_listings 
-        (donor_id, food_type, quantity_kg, cooked_at, expires_at, status, pickup_lat, pickup_lng, pickup_address)
-       VALUES ($1, $2, $3, $4, $5, 'AVAILABLE', $6, $7, $8)
+        (donor_id, food_type, quantity_kg, cooked_at, expires_at, status, pickup_lat, pickup_lng, pickup_address,
+         category, dietary_type, preparation_time, pickup_deadline, consumption_deadline, storage_condition, allergens, safety_declared)
+       VALUES ($1, $2, $3, $4, $5, 'AVAILABLE', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         donorId,
@@ -55,6 +79,14 @@ export async function createListing(req, res, next) {
         parseFloat(pickup_lat),
         parseFloat(pickup_lng),
         pickup_address || 'Donor Location',
+        foodCategory,
+        dietType,
+        prepTime,
+        pickupDeadline,
+        consumptionDeadline,
+        storageCond,
+        allergensList,
+        isSafetyDeclared,
       ]
     );
 
@@ -66,6 +98,11 @@ export async function createListing(req, res, next) {
       quantity_kg,
       donor_id: donorId,
       pickup_address,
+      category: foodCategory,
+      dietary_type: dietType,
+      pickup_deadline: pickupDeadline,
+      consumption_deadline: consumptionDeadline,
+      safety_declared: isSafetyDeclared,
     });
 
     // 3. FIX #1: Dual-Index Search - Find candidate shelters to notify
@@ -203,6 +240,18 @@ export async function claimListing(req, res, next) {
       );
     }
 
+    // Deduct claiming shelter's available capacity
+    try {
+      await query(
+        `UPDATE organizations
+         SET available_capacity_kg = GREATEST(0, available_capacity_kg - (SELECT quantity_kg FROM food_listings WHERE id = $1))
+         WHERE id = $2`,
+        [id, shelterId]
+      );
+    } catch (capErr) {
+      // Non-blocking for mock/simulated shelter IDs
+    }
+
     // Broadcast claim update to all connected WebSocket clients
     const alertMessage = JSON.stringify({
       event: 'FOOD_CLAIMED',
@@ -228,8 +277,15 @@ export async function claimListing(req, res, next) {
 
 export async function getAllListings(req, res, next) {
   try {
+    // Check if requester is authenticated and has an org_id
+    const requestingOrgId = req.user?.org_id || null;
+
     const dbRes = await query(
-      `SELECT f.*, u.full_name as donor_name, o.name as claimed_by_name, h.verification_token as verification_code
+      `SELECT f.*, u.full_name as donor_name, o.name as claimed_by_name,
+              CASE 
+                WHEN $1::uuid IS NOT NULL AND f.claimed_by = $1::uuid THEN h.verification_token
+                ELSE NULL 
+              END as verification_code
        FROM food_listings f
        LEFT JOIN users u ON u.id = f.donor_id
        LEFT JOIN organizations o ON o.id = f.claimed_by
@@ -240,9 +296,50 @@ export async function getAllListings(req, res, next) {
          ORDER BY created_at DESC 
          LIMIT 1
        ) h ON true
-       ORDER BY f.created_at DESC LIMIT 50`
+       ORDER BY f.created_at DESC LIMIT 50`,
+      [requestingOrgId]
     );
     res.json({ listings: dbRes.rows });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getListingRecommendations(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    // Fetch listing
+    const listingRes = await query(`SELECT * FROM food_listings WHERE id = $1`, [id]);
+    if (listingRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+    const listing = listingRes.rows[0];
+
+    // Fetch candidate verified shelters and any active requests
+    const sheltersRes = await query(
+      `SELECT o.*, 
+              r.id as active_request_id, r.quantity_kg as requested_kg, 
+              r.category as requested_category, r.dietary_type as requested_dietary,
+              r.needed_by as request_needed_by
+       FROM organizations o
+       LEFT JOIN recipient_requests r ON r.org_id = o.id AND r.status = 'ACTIVE'
+       WHERE o.org_type IN ('SHELTER', 'ORPHANAGE', 'COMMUNITY_KITCHEN')
+         AND o.is_verified = TRUE`
+    );
+
+    const candidates = sheltersRes.rows.map((s) => ({
+      ...s,
+      has_active_request: Boolean(s.active_request_id),
+      dietary_preference: s.requested_dietary || 'ANY',
+    }));
+
+    const results = matchListingToRecipients(listing, candidates);
+
+    res.json({
+      listing,
+      ...results,
+    });
   } catch (err) {
     next(err);
   }

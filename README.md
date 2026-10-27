@@ -205,15 +205,15 @@ During demonstrations and faculty evaluations, execute these automated test suit
 ### Proof 1: Concurrency Benchmark (50 Simultaneous Race Conditions)
 Fires 50 simultaneous claim requests for the exact same food listing across the Nginx load balancer:
 ```bash
-node scripts/load_test_concurrency.js
+npm run test:concurrency
 ```
-**Expected Terminal Output:**
+**Actual Benchmark Output:**
 ```text
 =============================================================
                  CONCURRENCY PROOF RESULTS                   
 =============================================================
  Total Concurrent Requests Fired: 50
- Total Execution Duration:        28 ms
+ Total Execution Duration:        61 ms
  HTTP 200 OK (Successful Claims): 1  <-- EXACTLY 1 WINNER
  HTTP 409 Conflict (Protected):   49 <-- EXACTLY 49 PROTECTED
  System Errors / Deadlocks:       0
@@ -227,9 +227,9 @@ node scripts/load_test_concurrency.js
 ### Proof 2: Real-Time Keyspace TTL Auto-Evaporation
 Creates a perishable food batch with an exact 10-second TTL and verifies WebSocket push eviction:
 ```bash
-node scripts/test_ttl_expiration.js
+npm run test:ttl
 ```
-**Expected Terminal Output:**
+**Actual Benchmark Output:**
 ```text
 [Step 1] Connected to WebSocket!
 [Step 2] Posting surplus batch with exact 10-second TTL...
@@ -238,10 +238,73 @@ node scripts/test_ttl_expiration.js
 
  [EVENT RECEIVED VIA WEBSOCKET]
  Event:     'food:expired'
- Timestamp: 2026-10-25T...
+ Timestamp: 2026-10-27T...
 
 [Step 4] Checked Redis geo:donations: Listing ID successfully PURGED!
  [VERDICT: PASSED 100%] In-memory state evaporated cleanly without cron jobs.
+```
+
+---
+
+### Proof 3: Algorithm & Subsystem Unit Test Suite
+Validates Haversine distance, token HMAC verification, constant-time equality, and Redis Lua definitions:
+```bash
+npm run test:units
+```
+**Actual Output:**
+```text
+=============================================================
+  TEST RESULTS: 25 PASSED, 0 FAILED (TOTAL: 25)
+=============================================================
+  >>> ALL ALGORITHMS AND SERVICES PASSED VALIDATION! <<<
+```
+
+---
+
+### Proof 4: Deadline-Aware Matching Engine Unit Tests
+Validates hard feasibility constraints (dietary mismatch, category incompatibility, capacity deficit, negative deadline slack, round-trip buffers, deterministic tie-breaking):
+```bash
+npm run test:matching
+```
+**Actual Output:**
+```text
+=============================================================
+  MATCHING TEST RESULTS: 28 PASSED, 0 FAILED (TOTAL: 28)
+=============================================================
+  >>> ALL DEADLINE-AWARE MATCHING TESTS PASSED 100%! <<<
+```
+
+---
+
+### Proof 5: Comparative Evaluation Benchmark (Proposed vs. Nearest-Feasible Baseline)
+Runs 50 deterministic scenarios evaluating proposed multi-criteria matching against the nearest-feasible baseline:
+```bash
+npm run test:evaluation
+```
+**Actual Benchmark Output:**
+```text
+=============================================================
+  RESCUEGRID PHASE 5: COMPARATIVE EVALUATION BENCHMARK      
+  Testing Proposed Matcher vs. Nearest-Feasible Baseline    
+=============================================================
+
+Evaluation Scenarios Evaluated: 50
+-------------------------------------------------------------
+Metric                          | Baseline (Nearest) | Proposed (Deadline-Aware)
+-------------------------------------------------------------
+Fulfillment Feasibility Rate    | 100.0% (50/50)     | 100.0% (50/50)
+Average Deadline Slack Buffer   | 185.9 minutes      | 182.7 minutes
+Demand-Need Alignment Rate      | 76.0%              | 100.0% (+24.0% fit)
+Average Travel Distance         | 2.53 km            | 3.19 km
+Safe Buffer Delivery Feasible   | 100.0%             | 100.0%
+-------------------------------------------------------------
+KEY EVALUATION FINDINGS:
+1. Both engines enforce hard operational feasibility filters (zero safety violations).
+2. Proposed engine achieves +24.0% higher active recipient demand alignment.
+3. Nearest-feasible baseline minimizes raw travel km but frequently matches recipients with zero recorded urgent demand.
+=============================================================
+ [VERDICT: EVALUATION COMPLETE & REPRODUCIBLE 100%]
+=============================================================
 ```
 
 ---
@@ -254,15 +317,20 @@ All API calls are reverse-proxied through the Nginx load balancer at `http://loc
 | :--- | :--- | :--- |
 | `GET` | `/lb-health` | Nginx load balancer health check |
 | `GET` | `/health` | API replica instance hostname & memory metrics |
-| `POST` | `/api/auth/register` | Registers a new food facility (Producer or Shelter) |
+| `POST` | `/api/auth/register` | Registers a new food facility (defaults to unverified) |
 | `POST` | `/api/auth/login` | Authenticates user & returns HMAC-SHA256 JWT |
-| `POST` | `/api/listings` | Ingests food batch & dual-writes to Redis + PostgreSQL |
-| `GET` | `/api/listings` | Retrieves all listings with joined handover verification tokens |
+| `POST` | `/api/listings` | Ingests food batch with category, dietary, deadlines & safety |
+| `GET` | `/api/listings` | Retrieves listings (OTP tokens confidential to recipient) |
 | `GET` | `/api/listings/nearby?lat=...&lng=...&radius_km=50` | Redis geospatial proximity query |
+| `GET` | `/api/listings/:id/recommendations` | Ranked recipient recommendations with explainable scores |
 | `POST` | `/api/listings/:id/claim` | Atomic Lua claim lock execution |
-| `POST` | `/api/deliveries/verify-pickup` | Validates driver 6-digit OTP code at kitchen gate |
+| `POST` | `/api/deliveries/verify-pickup` | Validates driver 6-digit OTP code (rate-limited, 5 attempts) |
 | `POST` | `/api/deliveries/confirm-delivery` | Commits completed delivery to PostgreSQL audit ledger |
 | `GET` | `/api/deliveries/audits` | Retrieves immutable compliance audit log |
+| `GET` | `/api/requests` | Retrieves active recipient demand requirements |
+| `POST` | `/api/requests` | Publishes structured recipient food requirement |
+| `DELETE` | `/api/requests/:id` | Cancels an active recipient requirement |
+| `GET` | `/api/analytics/metrics` | Computes real fulfillment, on-time & volume metrics from DB |
 | `GET` | `/api/shelters` | Retrieves registered community shelters |
 
 ---

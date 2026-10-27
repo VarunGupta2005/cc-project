@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS organizations (
     latitude DECIMAL(10, 7) NOT NULL,
     longitude DECIMAL(10, 7) NOT NULL,
     capacity_kg DECIMAL(10, 2) NOT NULL DEFAULT 50.0,
+    available_capacity_kg DECIMAL(10, 2) DEFAULT 50.0,
+    can_collect BOOLEAN DEFAULT TRUE,
+    accepted_categories TEXT[] DEFAULT '{"COOKED_MEAL","BAKERY","RAW_PRODUCE","PACKAGED"}',
+    dietary_restrictions TEXT[] DEFAULT '{}',
     is_verified BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -54,11 +58,31 @@ CREATE TABLE IF NOT EXISTS food_listings (
     pickup_lat DECIMAL(10, 7) NOT NULL,
     pickup_lng DECIMAL(10, 7) NOT NULL,
     pickup_address TEXT NOT NULL,
+    category VARCHAR(50) DEFAULT 'COOKED_MEAL',
+    dietary_type VARCHAR(50) DEFAULT 'VEG',
+    preparation_time TIMESTAMP WITH TIME ZONE,
+    pickup_deadline TIMESTAMP WITH TIME ZONE,
+    consumption_deadline TIMESTAMP WITH TIME ZONE,
+    storage_condition VARCHAR(50) DEFAULT 'AMBIENT',
+    allergens TEXT[] DEFAULT '{}',
+    safety_declared BOOLEAN DEFAULT TRUE,
     claimed_by UUID REFERENCES organizations(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Handover Audits Table (Chain-of-custody and legal compliance)
+-- 5. Recipient Requests Table (Structured recipient demand)
+CREATE TABLE IF NOT EXISTS recipient_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    quantity_kg DECIMAL(10, 2) NOT NULL,
+    category VARCHAR(50) NOT NULL DEFAULT 'COOKED_MEAL',
+    dietary_type VARCHAR(50) NOT NULL DEFAULT 'ANY',
+    needed_by TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR(50) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Handover Audits Table (Chain-of-custody and legal compliance)
 CREATE TABLE IF NOT EXISTS handover_audits (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     listing_id UUID REFERENCES food_listings(id) ON DELETE CASCADE,
@@ -75,6 +99,8 @@ CREATE TABLE IF NOT EXISTS handover_audits (
 CREATE INDEX IF NOT EXISTS idx_listings_status ON food_listings(status);
 CREATE INDEX IF NOT EXISTS idx_listings_donor ON food_listings(donor_id);
 CREATE INDEX IF NOT EXISTS idx_orgs_coords ON organizations(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_requests_org_status ON recipient_requests(org_id, status);
+CREATE INDEX IF NOT EXISTS idx_requests_needed_by ON recipient_requests(needed_by);
 
 -- =============================================================
 -- SEED DATA (Default Accounts for Instant Testing & Demo)
@@ -98,4 +124,11 @@ VALUES
     ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '22222222-2222-2222-2222-222222222222', 'Campus Hostel Dining Hall', 'HOSTEL', 12.9780, 77.5990, 300.0, TRUE),
     ('cccccccc-cccc-cccc-cccc-cccccccccccc', '33333333-3333-3333-3333-333333333333', 'Hope Haven Shelter', 'SHELTER', 12.9800, 77.6050, 100.0, TRUE),
     ('dddddddd-dddd-dddd-dddd-dddddddddddd', '44444444-4444-4444-4444-444444444444', 'City Care Relief Center', 'COMMUNITY_KITCHEN', 12.9650, 77.5850, 150.0, TRUE)
+ON CONFLICT DO NOTHING;
+
+-- Seed Active Recipient Requests for Verified Shelters
+INSERT INTO recipient_requests (id, org_id, quantity_kg, category, dietary_type, needed_by, status)
+VALUES
+    ('11112222-3333-4444-5555-666677778888', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 30.0, 'COOKED_MEAL', 'VEG', CURRENT_TIMESTAMP + INTERVAL '6 hours', 'ACTIVE'),
+    ('22223333-4444-5555-6666-777788889999', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 50.0, 'COOKED_MEAL', 'ANY', CURRENT_TIMESTAMP + INTERVAL '8 hours', 'ACTIVE')
 ON CONFLICT DO NOTHING;
