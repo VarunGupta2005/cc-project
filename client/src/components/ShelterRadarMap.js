@@ -72,8 +72,9 @@ function FitRadarBounds({ center, radiusKm }) {
     if (center && center[0] && center[1] && radiusKm) {
       try {
         const circle = L.circle(center, { radius: radiusKm * 1000 });
-        map.fitBounds(circle.getBounds(), {
-          padding: [24, 24],
+        // Apply 20% margin buffer so the scan circle fits comfortably with breathing room
+        map.fitBounds(circle.getBounds().pad(0.20), {
+          padding: [30, 30],
           maxZoom: 15,
           animate: true,
         });
@@ -94,7 +95,7 @@ export default function ShelterRadarMap({
   radiusKm = 15,
   listings = [],
   onClaim,
-  height = '340px',
+  height = '440px',
 }) {
   const center = [parseFloat(shelterLat) || 12.98, parseFloat(shelterLng) || 77.605];
   const radiusMeters = Math.max(1000, (parseFloat(radiusKm) || 15) * 1000);

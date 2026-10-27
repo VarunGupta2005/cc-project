@@ -335,7 +335,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                   radiusKm={radiusKm}
                   listings={availableListings}
                   onClaim={handleClaim}
-                  height="340px"
+                  height="440px"
                 />
               </CardContent>
             )}
