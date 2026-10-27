@@ -9,7 +9,8 @@
 
 > **BCS VII Semester &bull; Cloud Computing Capstone Project**  
 > **Topic:** Real-Time Food Surplus Redistribution Network  
-> **Architecture:** Nginx Reverse Proxy / Load Balancer &bull; 3x Stateless API Microservices &bull; Redis 7 Dual-Index GEO Engine &bull; PostgreSQL 15 ACID Persistence &bull; React 18 Shadcn UI Client
+> **Architecture:** Nginx Reverse Proxy / Load Balancer &bull; 3x Stateless API Microservices &bull; Redis 7 Dual-Index GEO Engine &bull; PostgreSQL 15 ACID Persistence &bull; React 18 Shadcn UI Client  
+> **Official Document:** 📄 [RescueGrid_System_Objective_and_Implementation.pdf](./RescueGrid_System_Objective_and_Implementation.pdf) *(Objectives, Formulations, Mathematical Derivations & Implementation Ledger)*
 
 ---
 
