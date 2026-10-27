@@ -741,11 +741,11 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                         alignItems: 'center',
                         gap: '0.45rem',
                         fontSize: '0.8125rem',
-                        color: '#92400e',
-                        backgroundColor: '#fffbeb',
+                        color: 'var(--warning-foreground)',
+                        backgroundColor: 'var(--warning-bg)',
                         padding: '0.5rem 0.75rem',
                         borderRadius: 'var(--radius-sm)',
-                        border: '1px solid #fde68a'
+                        border: '1px solid var(--warning-border)'
                       }}>
                         <Clock size={14} />
                         <span>Shelf-life TTL expired. Automatically evicted from active radar.</span>

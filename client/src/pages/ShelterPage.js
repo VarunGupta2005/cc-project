@@ -334,6 +334,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                   shelterName={session?.org?.name || session?.user?.full_name || 'My Shelter'}
                   radiusKm={radiusKm}
                   listings={availableListings}
+                  claimedListings={claimedDeliveries}
                   onClaim={handleClaim}
                   height="440px"
                 />
@@ -772,6 +773,19 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
             </Card>
           ) : (
             <div>
+              {/* Live Inbound Route Map for Active Claimed Deliveries */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <ShelterRadarMap
+                  shelterLat={radarLat}
+                  shelterLng={radarLng}
+                  shelterName={session?.org?.name || session?.user?.full_name || 'My Shelter'}
+                  radiusKm={radiusKm}
+                  listings={[]}
+                  claimedListings={claimedDeliveries}
+                  height="320px"
+                />
+              </div>
+
               <div style={{
                 fontSize: '0.75rem',
                 fontWeight: 700,
@@ -853,11 +867,11 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                         alignItems: 'center',
                         gap: '0.45rem',
                         fontSize: '0.8125rem',
-                        color: '#92400e',
-                        backgroundColor: '#fffbeb',
+                        color: 'var(--warning-foreground)',
+                        backgroundColor: 'var(--warning-bg)',
                         padding: '0.5rem 0.75rem',
                         borderRadius: 'var(--radius-sm)',
-                        border: '1px solid #fde68a'
+                        border: '1px solid var(--warning-border)'
                       }}>
                         <Clock size={14} />
                         <span>Waiting for courier to arrive at donor kitchen and verify OTP.</span>
@@ -879,7 +893,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                           alignItems: 'center',
                           gap: '0.45rem',
                           fontSize: '0.8125rem',
-                          color: '#1d4ed8',
+                          color: '#60a5fa',
                           fontWeight: 600
                         }}>
                           <Truck size={15} />
@@ -903,11 +917,11 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                         alignItems: 'center',
                         gap: '0.45rem',
                         fontSize: '0.8125rem',
-                        color: '#065f46',
-                        backgroundColor: '#ecfdf5',
+                        color: '#34d399',
+                        backgroundColor: 'var(--success-bg)',
                         padding: '0.5rem 0.75rem',
                         borderRadius: 'var(--radius-sm)',
-                        border: '1px solid #a7f3d0'
+                        border: '1px solid var(--success-border)'
                       }}>
                         <CheckCircle2 size={14} />
                         <span>Delivery complete and verified in PostgreSQL audit ledger.</span>
