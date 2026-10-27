@@ -25,7 +25,7 @@ import {
   cancelRecipientRequest,
 } from '../services/api';
 import { getSocket } from '../services/socket';
-import LocationPickerMap from '../components/LocationPickerMap';
+import ShelterRadarMap from '../components/ShelterRadarMap';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -296,7 +296,9 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                     onChange={(e) => setRadiusKm(parseInt(e.target.value, 10))}
                     style={{ width: 'auto', height: '1.875rem', fontSize: '0.78rem', padding: '0 0.5rem' }}
                   >
-                    <option value="15">15 km (Neighborhood)</option>
+                    <option value="5">5 km (Neighborhood)</option>
+                    <option value="15">15 km (City Center)</option>
+                    <option value="30">30 km (Suburban)</option>
                     <option value="50">50 km (Metro Area)</option>
                     <option value="150">150 km (Regional)</option>
                     <option value="3000">🌐 All India (Wide Test)</option>
@@ -308,7 +310,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                     onClick={() => setShowMap(!showMap)}
                   >
                     <MapPin size={13} />
-                    <span>{showMap ? 'Hide Pin Map' : 'Adjust Pin'}</span>
+                    <span>{showMap ? 'Hide Radar Map' : 'Show Radar Map'}</span>
                   </Button>
 
                   <Button
@@ -323,15 +325,17 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
               </div>
             </CardHeader>
 
-            {/* Embedded Live Map Pin */}
+            {/* Visual Radar Map with Dynamic Blue Scan Perimeter */}
             {showMap && (
               <CardContent style={{ paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
-                <LocationPickerMap
-                  initialLat={radarLat}
-                  initialLng={radarLng}
-                  label="Shelter Radar Center (Tap to relocate pin)"
-                  onLocationSelect={handleLocationUpdate}
-                  height="200px"
+                <ShelterRadarMap
+                  shelterLat={radarLat}
+                  shelterLng={radarLng}
+                  shelterName={session?.org?.name || session?.user?.full_name || 'My Shelter'}
+                  radiusKm={radiusKm}
+                  listings={availableListings}
+                  onClaim={handleClaim}
+                  height="340px"
                 />
               </CardContent>
             )}
