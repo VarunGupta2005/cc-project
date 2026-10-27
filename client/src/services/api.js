@@ -57,14 +57,18 @@ export async function fetchNearbyListings(lat = 12.9716, lng = 77.5946, radius =
   return await res.json();
 }
 
-export async function fetchAllListings() {
-  const res = await fetch(`${API_BASE}/api/listings`);
+export async function fetchAllListings(customToken) {
+  const token = customToken || localStorage.getItem('rg_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/listings`, { headers });
   if (!res.ok) throw new Error('Failed to fetch all listings');
   return await res.json();
 }
 
-export async function createFoodListing(data) {
-  const token = localStorage.getItem('rg_token');
+export async function createFoodListing(data, customToken) {
+  const token = customToken || localStorage.getItem('rg_token');
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -80,8 +84,8 @@ export async function createFoodListing(data) {
   return await res.json();
 }
 
-export async function claimFoodListing(listingId, shelterId) {
-  const token = localStorage.getItem('rg_token');
+export async function claimFoodListing(listingId, shelterId, customToken) {
+  const token = customToken || localStorage.getItem('rg_token');
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -97,10 +101,14 @@ export async function claimFoodListing(listingId, shelterId) {
   return data;
 }
 
-export async function verifyPickup(listingId, verificationCode) {
+export async function verifyPickup(listingId, verificationCode, customToken) {
+  const token = customToken || localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch(`${API_BASE}/api/deliveries/verify-pickup`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ listing_id: listingId, verification_code: verificationCode }),
   });
   const data = await res.json();
@@ -110,10 +118,14 @@ export async function verifyPickup(listingId, verificationCode) {
   return data;
 }
 
-export async function confirmDelivery(listingId, notes = 'Verified handover at shelter') {
+export async function confirmDelivery(listingId, notes = 'Verified handover at shelter', customToken) {
+  const token = customToken || localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch(`${API_BASE}/api/deliveries/confirm-delivery`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ listing_id: listingId, notes }),
   });
   const data = await res.json();
@@ -135,8 +147,12 @@ export async function fetchAudits() {
   return await res.json();
 }
 
-export async function fetchListingRecommendations(listingId) {
-  const res = await fetch(`${API_BASE}/api/listings/${listingId}/recommendations`);
+export async function fetchListingRecommendations(listingId, customToken) {
+  const token = customToken || localStorage.getItem('rg_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/listings/${listingId}/recommendations`, { headers });
   if (!res.ok) throw new Error('Failed to fetch recommendations');
   return await res.json();
 }
@@ -148,8 +164,8 @@ export async function fetchRecipientRequests(orgId) {
   return await res.json();
 }
 
-export async function createRecipientRequest(data) {
-  const token = localStorage.getItem('rg_token');
+export async function createRecipientRequest(data, customToken) {
+  const token = customToken || localStorage.getItem('rg_token');
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -163,8 +179,8 @@ export async function createRecipientRequest(data) {
   return resData;
 }
 
-export async function cancelRecipientRequest(requestId) {
-  const token = localStorage.getItem('rg_token');
+export async function cancelRecipientRequest(requestId, customToken) {
+  const token = customToken || localStorage.getItem('rg_token');
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 

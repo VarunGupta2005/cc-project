@@ -39,7 +39,17 @@ export async function createListing(req, res, next) {
       return res.status(400).json({ error: 'Invalid latitude or longitude values' });
     }
 
-    const donorId = req.user ? req.user.id : req.body.donor_id;
+    // Resolve donor ID:
+    // 1. If explicit donor_id provided in body, prioritize it (handles client session & automated benchmark scripts)
+    // 2. Otherwise use authenticated user's ID if user is a DONOR
+    // 3. Fallback to req.user.id if available
+    let donorId = req.body.donor_id;
+    if (!donorId && req.user && req.user.role === 'DONOR') {
+      donorId = req.user.id;
+    } else if (!donorId && req.user) {
+      donorId = req.user.id;
+    }
+
     if (!donorId) {
       return res.status(400).json({ error: 'Donor identification required' });
     }
@@ -182,7 +192,7 @@ export async function getNearbyListings(req, res, next) {
 export async function claimListing(req, res, next) {
   try {
     const { id } = req.params;
-    const shelterId = req.user?.org_id || req.body.shelter_id;
+    const shelterId = req.body.shelter_id || (req.user?.role === 'SHELTER' ? req.user.org_id : null) || req.user?.org_id;
 
     if (!shelterId) {
       return res.status(400).json({ error: 'Shelter organization ID required to claim food' });

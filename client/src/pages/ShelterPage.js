@@ -73,7 +73,6 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const [showMap, setShowMap] = useState(true);
 
   const activeShelterId = session?.org?.id || 'cccccccc-cccc-cccc-cccc-cccccccccccc';
-  const shelterName = session?.org?.name || 'Verified Shelter';
 
   const radarLatRef = useRef(radarLat);
   const radarLngRef = useRef(radarLng);
@@ -96,7 +95,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
       setLoading(true);
       const [nearbyData, allData, reqData] = await Promise.all([
         fetchNearbyListings(lat, lng, radius),
-        fetchAllListings(),
+        fetchAllListings(session?.token),
         fetchRecipientRequests(activeShelterId).catch(() => ({ requests: [] })),
       ]);
 
@@ -130,7 +129,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
         category: reqCategory,
         dietary_type: reqDietary,
         hours_valid: parseFloat(reqHours),
-      });
+      }, session?.token);
       setReqMsg({ type: 'success', text: 'Active food requirement broadcasted to donors & matching engine!' });
       loadData();
     } catch (err) {
@@ -142,7 +141,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
 
   const handleCancelReq = async (id) => {
     try {
-      await cancelRecipientRequest(id);
+      await cancelRecipientRequest(id, session?.token);
       loadData();
     } catch (err) {
       console.error('Failed to cancel request', err);
@@ -189,7 +188,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const handleClaim = async (listingId) => {
     setClaimError(null);
     try {
-      const data = await claimFoodListing(listingId, activeShelterId, shelterName);
+      const data = await claimFoodListing(listingId, activeShelterId, session?.token);
       if (data.verification_token) {
         onOpenTokenModal(data.verification_token, listingId);
       }
@@ -203,7 +202,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const handleConfirmDelivery = async (listingId) => {
     setConfirmingId(listingId);
     try {
-      await confirmDelivery(listingId);
+      await confirmDelivery(listingId, 'Verified handover at shelter', session?.token);
       await loadData();
     } catch (err) {
       alert('Confirmation failed: ' + err.message);

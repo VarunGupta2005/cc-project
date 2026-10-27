@@ -60,9 +60,9 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
 
   const loadMyListings = async () => {
     try {
-      const data = await fetchAllListings();
+      const data = await fetchAllListings(session?.token);
       const filtered = (data.listings || []).filter(
-        (l) => l.donor_id === donorId || !l.donor_id
+        (l) => l.donor_id === donorId || l.donor_name === session?.user?.full_name || !l.donor_id
       );
       setMyListings(filtered);
     } catch (err) {
@@ -112,7 +112,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
         category,
         dietary_type: dietaryType,
         safety_declared: safetyDeclared,
-      });
+      }, session?.token);
 
       setStatusMsg({
         type: 'success',
@@ -139,7 +139,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
     }
     setLoadingRecsId(listingId);
     try {
-      const data = await fetchListingRecommendations(listingId);
+      const data = await fetchListingRecommendations(listingId, session?.token);
       setRecsMap((prev) => ({ ...prev, [listingId]: data.recommendations || [] }));
     } catch (e) {
       console.error('Failed to load recommendations', e);
@@ -157,7 +157,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
 
     setVerifyingId(listingId);
     try {
-      await verifyPickup(listingId, code);
+      await verifyPickup(listingId, code, session?.token);
       setPickupMsg({
         [listingId]: {
           success: 'Pickup verified! Handover authorized. Delivery status transitioned to IN_TRANSIT.',

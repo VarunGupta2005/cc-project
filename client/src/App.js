@@ -52,6 +52,19 @@ export default function App() {
     }
   }, []);
 
+  // Synchronize session across multi-tab activities
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const current = getStoredSession();
+      setSession(current);
+      if (!current) {
+        setActiveTab('auth');
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const handleLoginSuccess = (user, organization) => {
     const newSession = getStoredSession();
     setSession(newSession);
