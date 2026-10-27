@@ -342,6 +342,9 @@ export async function getListingRecommendations(req, res, next) {
       ...s,
       has_active_request: Boolean(s.active_request_id),
       dietary_preference: s.requested_dietary || 'ANY',
+      accepted_categories: s.requested_category
+        ? s.requested_category.split(',').map((c) => c.trim())
+        : ['ALL'],
     }));
 
     const results = matchListingToRecipients(listing, candidates);

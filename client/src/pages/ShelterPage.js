@@ -57,11 +57,29 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   // Active Food Demands / Requirements State
   const [myRequests, setMyRequests] = useState([]);
   const [reqQuantity, setReqQuantity] = useState('30');
-  const [reqCategory, setReqCategory] = useState('COOKED_MEAL');
-  const [reqDietary, setReqDietary] = useState('VEG');
+  const [reqCategories, setReqCategories] = useState(['COOKED_MEAL', 'PACKAGED']);
+  const [reqDietary, setReqDietary] = useState('ANY');
   const [reqHours, setReqHours] = useState('6');
   const [postingReq, setPostingReq] = useState(false);
   const [reqMsg, setReqMsg] = useState(null);
+
+  const DEMAND_CATEGORIES = [
+    { id: 'COOKED_MEAL', label: 'Cooked Prepared Meals', desc: 'Hot trays, rice, curries, meals' },
+    { id: 'PACKAGED', label: 'Packaged / Canned Food', desc: 'Sealed snacks, dry rations, tins' },
+    { id: 'BAKERY', label: 'Bakery & Bread', desc: 'Loaves, buns, rolls, pastries' },
+    { id: 'RAW_PRODUCE', label: 'Raw Fresh Produce', desc: 'Vegetables, fruits, ingredients' },
+  ];
+
+  const toggleReqCategory = (catId) => {
+    setReqCategories((prev) => {
+      if (prev.includes(catId)) {
+        if (prev.length === 1) return prev; // At least one must be selected
+        return prev.filter((c) => c !== catId);
+      } else {
+        return [...prev, catId];
+      }
+    });
+  };
 
   // Dynamic Radar Location
   const initialLat = parseFloat(session?.org?.latitude) || 12.9800;
@@ -123,14 +141,15 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     setPostingReq(true);
     setReqMsg(null);
     try {
+      const catString = reqCategories.length > 0 ? reqCategories.join(',') : 'COOKED_MEAL';
       await createRecipientRequest({
         org_id: activeShelterId,
         quantity_kg: parseFloat(reqQuantity),
-        category: reqCategory,
+        category: catString,
         dietary_type: reqDietary,
         hours_valid: parseFloat(reqHours),
       }, session?.token);
-      setReqMsg({ type: 'success', text: 'Active food requirement broadcasted to donors & matching engine!' });
+      setReqMsg({ type: 'success', text: `Broadcasted active demand for ${reqCategories.length} category(ies) to donors & matching engine!` });
       loadData();
     } catch (err) {
       setReqMsg({ type: 'error', text: err.message });
@@ -579,10 +598,10 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
               )}
 
               <form onSubmit={handlePostRequest}>
-                <div className="workflow-grid" style={{ marginBottom: '1rem' }}>
-                  <div className="form-group">
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <div className="form-group" style={{ maxWidth: '320px', marginBottom: '1.25rem' }}>
                     <label className="form-label">
-                      <span>Quantity Needed (kg)</span>
+                      <span>Total Quantity Needed (kg)</span>
                       <span className="form-hint">Kilograms required</span>
                     </label>
                     <input
@@ -605,29 +624,65 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                     />
                   </div>
 
-                  <div className="form-group">
+                  {/* Multi-Select Checkboxes for Accepted Categories */}
+                  <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                     <label className="form-label">
-                      <span>Accepted Category</span>
-                      <span className="form-hint">Type of surplus required</span>
+                      <span>Accepted Food Categories (Tick all that apply)</span>
+                      <span className="form-hint" style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                        {reqCategories.length} category(ies) selected
+                      </span>
                     </label>
-                    <select
-                      value={reqCategory}
-                      onChange={(e) => setReqCategory(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid var(--border)',
-                        background: 'var(--background)',
-                        color: 'var(--foreground)',
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      <option value="COOKED_MEAL">Cooked Prepared Meals</option>
-                      <option value="BAKERY">Bakery & Snacks</option>
-                      <option value="RAW_PRODUCE">Raw Fresh Produce</option>
-                      <option value="PACKAGED">Packaged / Canned Food</option>
-                    </select>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                      gap: '0.6rem',
+                      marginTop: '0.35rem'
+                    }}>
+                      {DEMAND_CATEGORIES.map((cat) => {
+                        const isSelected = reqCategories.includes(cat.id);
+                        return (
+                          <div
+                            key={cat.id}
+                            onClick={() => toggleReqCategory(cat.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: '0.65rem',
+                              padding: '0.65rem 0.85rem',
+                              borderRadius: 'var(--radius)',
+                              border: `1.5px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                              backgroundColor: isSelected ? 'var(--accent)' : 'var(--card)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              userSelect: 'none',
+                              boxShadow: isSelected ? 'var(--shadow-xs)' : 'none',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // Handled by container onClick
+                              style={{
+                                cursor: 'pointer',
+                                accentColor: 'var(--primary)',
+                                width: '16px',
+                                height: '16px',
+                                marginTop: '2px',
+                                flexShrink: 0
+                              }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '0.84rem', fontWeight: isSelected ? 700 : 600, color: 'var(--foreground)' }}>
+                                {cat.label}
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', marginTop: '0.1rem' }}>
+                                {cat.desc}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -652,6 +707,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                     >
                       <option value="ANY">Any Dietary Type</option>
                       <option value="VEG">Strictly Vegetarian</option>
+                      <option value="NON_VEG">Includes Non-Vegetarian</option>
                       <option value="VEGAN">Strictly Vegan</option>
                     </select>
                   </div>
@@ -659,7 +715,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                   <div className="form-group">
                     <label className="form-label">
                       <span>Needed Within</span>
-                      <span className="form-hint">Operational window</span>
+                      <span className="form-hint">Operational delivery window</span>
                     </label>
                     <select
                       value={reqHours}
@@ -674,17 +730,18 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                         fontSize: '0.875rem'
                       }}
                     >
-                      <option value="2">Next 2 Hours (Urgent Dinner)</option>
+                      <option value="2">Next 2 Hours (Urgent Meal)</option>
                       <option value="4">Next 4 Hours</option>
                       <option value="6">Next 6 Hours</option>
                       <option value="12">Next 12 Hours (Today)</option>
+                      <option value="24">Next 24 Hours</option>
                     </select>
                   </div>
                 </div>
 
                 <Button type="submit" disabled={postingReq} style={{ width: '100%' }}>
                   <PlusCircle size={15} />
-                  <span>{postingReq ? 'Broadcasting Need...' : 'Broadcast Food Requirement to Donors'}</span>
+                  <span>{postingReq ? 'Broadcasting Need...' : `Broadcast Food Requirement (${reqCategories.length} Categories)`}</span>
                 </Button>
               </form>
             </CardContent>
@@ -715,7 +772,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                        {req.quantity_kg} kg &bull; {req.category.replace('_', ' ')} ({req.dietary_type})
+                        {req.quantity_kg} kg &bull; {(req.category || 'COOKED_MEAL').split(',').map((c) => c.replace('_', ' ')).join(' + ')} ({req.dietary_type})
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                         Needed by: {new Date(req.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(req.needed_by).toLocaleDateString()})

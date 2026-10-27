@@ -68,6 +68,10 @@ export async function createRequest(req, res, next) {
       neededByTime = new Date(Date.now() + validHours * 3600 * 1000);
     }
 
+    const catStr = Array.isArray(category) && category.length > 0
+      ? category.join(',')
+      : (category || 'COOKED_MEAL');
+
     const result = await query(
       `INSERT INTO recipient_requests 
         (org_id, quantity_kg, category, dietary_type, needed_by, status)
@@ -76,7 +80,7 @@ export async function createRequest(req, res, next) {
       [
         orgId,
         parseFloat(quantity_kg),
-        category || 'COOKED_MEAL',
+        catStr,
         dietary_type || 'ANY',
         neededByTime,
       ]

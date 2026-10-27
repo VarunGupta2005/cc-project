@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -11,17 +11,16 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Vibrant Cyberpunk Palette for Multiple Concurrent Inbound Deliveries
+// Professional Color Palette for Inbound Deliveries
 const ROUTE_PALETTE = [
-  '#38bdf8', // Electric Sky Blue
-  '#34d399', // Radiant Emerald
-  '#fbbf24', // Luminous Amber
-  '#c084fc', // Cyber Purple
-  '#f472b6', // Neon Pink
-  '#67e8f9', // Cyan
+  '#0284c7', // Sky Blue
+  '#059669', // Emerald
+  '#d97706', // Amber
+  '#7c3aed', // Purple
+  '#db2777', // Pink
 ];
 
-// Custom Shelter Facility Pin (Electric Blue Hub Glow)
+// Professional Shelter Central Hub Pin (Sleek Royal Blue with SVG Building)
 const createShelterIcon = () =>
   L.divIcon({
     className: 'custom-shelter-pin',
@@ -36,10 +35,14 @@ const createShelterIcon = () =>
         align-items: center;
         justify-content: center;
         border: 2.5px solid #ffffff;
-        box-shadow: 0 0 15px rgba(59, 130, 246, 0.65), 0 4px 10px rgba(0, 0, 0, 0.5);
-        font-size: 18px;
+        box-shadow: 0 0 16px rgba(37, 99, 235, 0.65), 0 4px 10px rgba(0, 0, 0, 0.35);
       ">
-        🏢
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+          <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+          <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+          <path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>
+        </svg>
       </div>
     `,
     iconSize: [38, 38],
@@ -47,59 +50,67 @@ const createShelterIcon = () =>
     popupAnchor: [0, -22],
   });
 
-// Custom Food Surplus Batch Pin (Emerald Glow for Unclaimed Batches)
+// Professional Food Surplus Pin (Emerald Glow with SVG Plate & Utensils)
 const createFoodIcon = () =>
   L.divIcon({
     className: 'custom-food-pin',
     html: `
       <div style="
-        background: linear-gradient(135deg, #16a34a, #15803d);
+        background: linear-gradient(135deg, #10b981, #059669);
         color: white;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 2px solid #ffffff;
-        box-shadow: 0 0 12px rgba(34, 197, 94, 0.5), 0 3px 8px rgba(0, 0, 0, 0.4);
-        font-size: 15px;
-        cursor: pointer;
-      ">
-        🍲
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -18],
-  });
-
-// Custom Active Delivery Courier Pin (Glowing Truck with Route-specific color)
-const createDeliveryCourierIcon = (color) =>
-  L.divIcon({
-    className: 'custom-delivery-pin',
-    html: `
-      <div style="
-        background: ${color};
-        color: #090d16;
         width: 34px;
         height: 34px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 2.5px solid #ffffff;
-        box-shadow: 0 0 14px ${color}, 0 4px 10px rgba(0, 0, 0, 0.6);
-        font-size: 16px;
-        font-weight: bold;
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 14px rgba(16, 185, 129, 0.55), 0 3px 8px rgba(0, 0, 0, 0.3);
         cursor: pointer;
       ">
-        🚚
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/>
+          <path d="M15 2v19"/>
+          <path d="M5 2v7a3 3 0 0 0 3 3h2"/>
+          <path d="M7 2v20"/>
+        </svg>
       </div>
     `,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -20],
+  });
+
+// Professional Active Delivery Courier Pin (Vibrant Sky-Blue with SVG Delivery Truck)
+const createDeliveryCourierIcon = (color = '#0284c7') =>
+  L.divIcon({
+    className: 'custom-delivery-pin',
+    html: `
+      <div style="
+        background: ${color};
+        color: #ffffff;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2.5px solid #ffffff;
+        box-shadow: 0 0 14px ${color}, 0 4px 10px rgba(0, 0, 0, 0.35);
+        cursor: pointer;
+      ">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+          <path d="M15 18H9"/>
+          <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
+          <circle cx="17" cy="18.5" r="2.5"/>
+          <circle cx="7" cy="18.5" r="2.5"/>
+        </svg>
+      </div>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -21],
   });
 
 // Automatically fits map viewport when radius or center pin changes
@@ -221,76 +232,51 @@ export default function ShelterRadarMap({
             </Popup>
           </Marker>
 
-          {/* 3. Inbound Active Delivery Route Lines (Hub-and-Spoke Topology) */}
+          {/* 3. Inbound Active Delivery Courier Pins (Clean Point Markers - No Cluttered Straight Lines) */}
           {activeClaimed.map((item, idx) => {
             const donorPos = [parseFloat(item.pickup_lat), parseFloat(item.pickup_lng)];
             const routeColor = ROUTE_PALETTE[idx % ROUTE_PALETTE.length];
 
             return (
-              <React.Fragment key={`delivery-route-${item.id}`}>
-                {/* Visual Route Path Line */}
-                <Polyline
-                  positions={[donorPos, center]}
-                  pathOptions={{
-                    color: routeColor,
-                    weight: 3.5,
-                    dashArray: '8, 10',
-                    opacity: 0.95,
-                  }}
-                >
-                  <Popup>
-                    <div style={{ padding: '0.25rem', minWidth: '220px', fontFamily: 'inherit' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: routeColor }}>
-                          ● ACTIVE DELIVERY ROUTE #{idx + 1}
-                        </span>
-                      </div>
-                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--foreground)', marginTop: '0.25rem' }}>
-                        {item.food_type}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                        From: <b>{item.pickup_address}</b> ➔ <b>{shelterName}</b>
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          marginTop: '0.45rem',
-                          padding: '0.35rem 0.5rem',
-                          backgroundColor: 'var(--secondary)',
-                          borderRadius: '6px',
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                        }}
-                      >
-                        <span style={{ color: 'var(--foreground)' }}>⚖️ {item.quantity_kg} kg</span>
-                        <span style={{ color: routeColor }}>Status: {item.status}</span>
-                      </div>
-                    </div>
-                  </Popup>
-                </Polyline>
-
-                {/* Pickup Origin Marker (Donor Commercial Kitchen) */}
-                <Marker position={donorPos} icon={createDeliveryCourierIcon(routeColor)}>
-                  <Popup>
-                    <div style={{ padding: '0.25rem', minWidth: '220px', fontFamily: 'inherit' }}>
+              <Marker key={`delivery-courier-${item.id}`} position={donorPos} icon={createDeliveryCourierIcon(routeColor)}>
+                <Popup>
+                  <div style={{ padding: '0.25rem', minWidth: '220px', fontFamily: 'inherit' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                       <span style={{ fontSize: '0.72rem', fontWeight: 700, color: routeColor, textTransform: 'uppercase' }}>
-                        Pickup Kitchen Gate
+                        Inbound Delivery #{idx + 1}
                       </span>
-                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--foreground)', marginTop: '0.2rem' }}>
-                        {item.food_type}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                        📍 {item.pickup_address}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#10b981', marginTop: '0.35rem', fontWeight: 600 }}>
-                        Handover Code Verified at Kitchen Gate
-                      </div>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                        {item.status}
+                      </span>
                     </div>
-                  </Popup>
-                </Marker>
-              </React.Fragment>
+                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--foreground)' }}>
+                      {item.food_type}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
+                      📍 <b>From:</b> {item.pickup_address}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.1rem' }}>
+                      🏢 <b>To:</b> {shelterName}
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: '0.45rem',
+                        padding: '0.35rem 0.5rem',
+                        backgroundColor: 'var(--secondary)',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <span style={{ color: 'var(--foreground)' }}>⚖️ {item.quantity_kg} kg</span>
+                      <span style={{ color: '#10b981' }}>Handover Code Verified</span>
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
             );
           })}
 
@@ -383,8 +369,23 @@ export default function ShelterRadarMap({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span>🏢</span>
-            <span>{shelterName} (Hub)</span>
+            <span style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+                <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+                <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+              </svg>
+            </span>
+            <span style={{ fontWeight: 600, color: 'var(--foreground)' }}>{shelterName} (Hub)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <span
@@ -400,18 +401,44 @@ export default function ShelterRadarMap({
             <span>{radiusKm} km Scan Perimeter</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span>🍲</span>
+            <span style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/><path d="M15 2v19"/><path d="M5 2v7a3 3 0 0 0 3 3h2"/><path d="M7 2v20"/>
+              </svg>
+            </span>
             <span>{listings.length} Available Batches</span>
           </div>
           {activeClaimed.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8', fontWeight: 600 }}>
-              <span>🚚</span>
-              <span>{activeClaimed.length} Active Inbound Routes</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#0284c7', fontWeight: 600 }}>
+              <span style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                backgroundColor: '#0284c7',
+                color: '#ffffff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><circle cx="17" cy="18.5" r="2.5"/><circle cx="7" cy="18.5" r="2.5"/>
+                </svg>
+              </span>
+              <span>{activeClaimed.length} Inbound Deliveries Active</span>
             </div>
           )}
         </div>
 
-        <span style={{ fontSize: '0.7rem' }}>Tap any pin or route for batch details & handover</span>
+        <span style={{ fontSize: '0.7rem' }}>Tap any pin for facility details & digital handover code</span>
       </div>
     </div>
   );

@@ -34,6 +34,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
   const [safetyDeclared, setSafetyDeclared] = useState(true);
   const [quantityKg, setQuantityKg] = useState('25');
   const [expiryOption, setExpiryOption] = useState('7200'); // 2 hours default
+  const [customHours, setCustomHours] = useState('2');
   const [pickupAddress, setPickupAddress] = useState(
     session?.org?.name ? `${session.org.name}, Banquet Hall` : 'Grand Palace Hotel, Banquet Hall, MG Road'
   );
@@ -353,24 +354,64 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                   <div className="form-group">
                     <label className="form-label">
                       <span>Perishability Shelf-Life (TTL)</span>
-                      <span className="form-hint">Auto-evicted from Redis</span>
+                      <span className="form-hint">Auto-evicted from Redis &bull; Type custom hours or tap preset</span>
                     </label>
-                    <div className="chips-row" style={{ marginTop: '0.15rem' }}>
-                      {[
-                        { label: '⚡ 15s (Demo)', value: '15' },
-                        { label: '1 Hour', value: '3600' },
-                        { label: '2 Hours', value: '7200' },
-                        { label: '4 Hours', value: '14400' },
-                      ].map((chip) => (
-                        <button
-                          key={chip.value}
-                          type="button"
-                          className={`chip-btn ${expiryOption === chip.value ? 'active' : ''}`}
-                          onClick={() => setExpiryOption(chip.value)}
-                        >
-                          {chip.label}
-                        </button>
-                      ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '0.15rem', flexWrap: 'wrap' }}>
+                      <div style={{ position: 'relative', width: '120px', flexShrink: 0 }}>
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0.1"
+                          max="72"
+                          placeholder="2"
+                          value={customHours}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCustomHours(val);
+                            const parsed = parseFloat(val);
+                            if (!isNaN(parsed) && parsed > 0) {
+                              setExpiryOption(Math.round(parsed * 3600).toString());
+                            }
+                          }}
+                          style={{ paddingRight: '2.4rem', height: '2.1rem', fontSize: '0.84rem' }}
+                        />
+                        <span style={{
+                          position: 'absolute',
+                          right: '0.65rem',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          fontSize: '0.75rem',
+                          color: 'var(--muted-foreground)',
+                          fontWeight: 600,
+                          pointerEvents: 'none',
+                        }}>
+                          hrs
+                        </span>
+                      </div>
+
+                      <div className="chips-row" style={{ flex: 1, gap: '0.35rem' }}>
+                        {[
+                          { label: '⚡ 15s (Demo)', value: '15', hours: '' },
+                          { label: '1h', value: '3600', hours: '1' },
+                          { label: '2h', value: '7200', hours: '2' },
+                          { label: '3h', value: '10800', hours: '3' },
+                          { label: '4h', value: '14400', hours: '4' },
+                          { label: '6h', value: '21600', hours: '6' },
+                        ].map((chip) => (
+                          <button
+                            key={chip.value}
+                            type="button"
+                            className={`chip-btn ${expiryOption === chip.value ? 'active' : ''}`}
+                            onClick={() => {
+                              setExpiryOption(chip.value);
+                              setCustomHours(chip.hours);
+                            }}
+                            style={{ padding: '0.25rem 0.6rem', fontSize: '0.78rem' }}
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
