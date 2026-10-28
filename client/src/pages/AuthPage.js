@@ -3,6 +3,8 @@ import {
   Zap,
   Utensils,
   Building2,
+  Bike,
+  ShieldCheck,
   Lock,
   Mail,
   ArrowRight,
@@ -88,7 +90,7 @@ export default function AuthPage({ onLoginSuccess }) {
   };
 
   return (
-    <div style={{ maxWidth: '460px', margin: '2.5rem auto', padding: '0 1rem' }}>
+    <div style={{ maxWidth: '520px', margin: '2.5rem auto', padding: '0 1rem' }}>
       {/* Brand Header */}
       <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
         <div style={{
@@ -145,12 +147,13 @@ export default function AuthPage({ onLoginSuccess }) {
           {!isRegister ? (
             /* ================= SIGN IN FORM ================= */
             <div>
-              {/* Step 1: Select Facility Category */}
+              {/* Step 1: Select Facility / Persona Role */}
               <div style={{ marginBottom: '1.25rem' }}>
                 <label className="form-label" style={{ marginBottom: '0.5rem' }}>
-                  1. Select Facility Role
+                  1. Select Login Persona / Role
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
+                  {/* Role 1: Food Producer */}
                   <div
                     onClick={() => {
                       setRole('DONOR');
@@ -175,6 +178,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     </div>
                   </div>
 
+                  {/* Role 2: Food Consumer */}
                   <div
                     onClick={() => {
                       setRole('SHELTER');
@@ -196,6 +200,56 @@ export default function AuthPage({ onLoginSuccess }) {
                     </div>
                     <div style={{ fontSize: '0.6875rem', color: 'var(--muted-foreground)', marginTop: '0.1rem', lineHeight: '1.3' }}>
                       Hunger Shelter / NGO / Bank
+                    </div>
+                  </div>
+
+                  {/* Role 3: Fleet Courier / Rider */}
+                  <div
+                    onClick={() => {
+                      setRole('RIDER');
+                      setEmail('rider@hopehaven.org');
+                      setPassword('password123');
+                    }}
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: 'var(--radius)',
+                      border: `2px solid ${role === 'RIDER' ? 'var(--primary)' : 'var(--border)'}`,
+                      backgroundColor: role === 'RIDER' ? 'var(--secondary)' : 'var(--card)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <Bike size={18} color={role === 'RIDER' ? 'var(--primary)' : 'var(--muted-foreground)'} />
+                    <div style={{ fontWeight: 600, fontSize: '0.84rem', color: role === 'RIDER' ? 'var(--primary)' : 'var(--foreground)', marginTop: '0.35rem' }}>
+                      Fleet Courier
+                    </div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--muted-foreground)', marginTop: '0.1rem', lineHeight: '1.3' }}>
+                      Redistribution Rider / Terminal
+                    </div>
+                  </div>
+
+                  {/* Role 4: Platform Operator / Admin */}
+                  <div
+                    onClick={() => {
+                      setRole('ADMIN');
+                      setEmail('admin@rescuegrid.org');
+                      setPassword('password123');
+                    }}
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: 'var(--radius)',
+                      border: `2px solid ${role === 'ADMIN' ? 'var(--primary)' : 'var(--border)'}`,
+                      backgroundColor: role === 'ADMIN' ? 'var(--secondary)' : 'var(--card)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <ShieldCheck size={18} color={role === 'ADMIN' ? 'var(--primary)' : 'var(--muted-foreground)'} />
+                    <div style={{ fontWeight: 600, fontSize: '0.84rem', color: role === 'ADMIN' ? 'var(--primary)' : 'var(--foreground)', marginTop: '0.35rem' }}>
+                      Platform Admin
+                    </div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--muted-foreground)', marginTop: '0.1rem', lineHeight: '1.3' }}>
+                      Cluster Operations Tower
                     </div>
                   </div>
                 </div>
@@ -237,10 +291,19 @@ export default function AuthPage({ onLoginSuccess }) {
                   type="submit"
                   size="lg"
                   disabled={loading}
-                  variant={role === 'DONOR' ? 'default' : 'success'}
                   style={{ width: '100%', marginTop: '0.5rem' }}
                 >
-                  <span>{loading ? 'Authenticating...' : `Enter ${role === 'DONOR' ? 'Producer' : 'Shelter'} Portal`}</span>
+                  <span>
+                    {loading
+                      ? 'Authenticating...'
+                      : role === 'DONOR'
+                      ? 'Enter Producer Portal'
+                      : role === 'SHELTER'
+                      ? 'Enter Shelter Portal'
+                      : role === 'RIDER'
+                      ? 'Enter Rider Task Portal'
+                      : 'Enter Admin Control Tower'}
+                  </span>
                   <ArrowRight size={15} />
                 </Button>
               </form>
@@ -250,7 +313,7 @@ export default function AuthPage({ onLoginSuccess }) {
                 <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.65rem' }}>
                   ⚡ Quick Demo Evaluator Logins:
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
                   <Button
                     variant="outline"
                     size="sm"
@@ -269,6 +332,26 @@ export default function AuthPage({ onLoginSuccess }) {
                   >
                     <Building2 size={13} />
                     <span>Hope Haven (Shelter)</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleQuickLogin('rider@hopehaven.org')}
+                    style={{ fontSize: '0.75rem', justifyContent: 'flex-start' }}
+                  >
+                    <Bike size={13} />
+                    <span>Vikram Singh (Rider)</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleQuickLogin('admin@rescuegrid.org')}
+                    style={{ fontSize: '0.75rem', justifyContent: 'flex-start' }}
+                  >
+                    <ShieldCheck size={13} />
+                    <span>RescueGrid (Admin)</span>
                   </Button>
                 </div>
               </div>
