@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RescueGrid — Light Mode Visual Palette Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    /* Global Reset & Base */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      background-color: var(--bg);
+      color: var(--text-main);
+      padding: 1.5rem;
+    }
+
+    /* ========================================================================= */
+    /* THEME 1: VERCEL GEIST LIGHT (The Direct 1:1 Invert of Vercel Obsidian)    */
+    /* ========================================================================= */
+    .theme-vercel-geist {
+      --bg: #fafafa;
+      --card-bg: #ffffff;
+      --card-subtle: #f4f4f5;
+      --border: #e4e4e7;
+      --border-subtle: #ebebed;
+      --text-main: #09090b;
+      --text-muted: #71717a;
+      --primary: #000000;
+      --primary-hover: #27272a;
+      --primary-text: #ffffff;
+      --accent-surface: #f4f4f5;
+      --accent-border: #e4e4e7;
+      --badge-success-bg: #ecfdf5;
+      --badge-success-border: #a7f3d0;
+      --badge-success-text: #059669;
+      --badge-warning-bg: #fffbeb;
+      --badge-warning-border: #fde68a;
+      --badge-warning-text: #b45309;
+      --badge-danger-bg: #fef2f2;
+      --badge-danger-border: #fecaca;
+      --badge-danger-text: #dc2626;
+      --badge-info-bg: #f4f4f5;
+      --badge-info-border: #e4e4e7;
+      --badge-info-text: #18181b;
+      --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+      --otp-bg: #fafafa;
+      --otp-border: #e4e4e7;
+    }
+
+    /* ========================================================================= */
+    /* THEME 2: LINEAR PORCELAIN (Subtle Warm Gray, Ultra-Sleek & Soft Contrast) */
+    /* ========================================================================= */
+    .theme-linear-porcelain {
+      --bg: #f8f8fa;
+      --card-bg: #ffffff;
+      --card-subtle: #f1f1f4;
+      --border: #e5e5eb;
+      --border-subtle: #ededf2;
+      --text-main: #18181b;
+      --text-muted: #6b7280;
+      --primary: #18181b;
+      --primary-hover: #2e2e34;
+      --primary-text: #ffffff;
+      --accent-surface: #efeff3;
+      --accent-border: #e0e0e6;
+      --badge-success-bg: #f0fdf4;
+      --badge-success-border: #bbf7d0;
+      --badge-success-text: #16a34a;
+      --badge-warning-bg: #fefce8;
+      --badge-warning-border: #fef08a;
+      --badge-warning-text: #ca8a04;
+      --badge-danger-bg: #fff1f2;
+      --badge-danger-border: #fecdd3;
+      --badge-danger-text: #e11d48;
+      --badge-info-bg: #f1f1f5;
+      --badge-info-border: #e2e2e8;
+      --badge-info-text: #27272a;
+      --card-shadow: 0 2px 5px rgba(20, 20, 30, 0.04), 0 1px 2px rgba(20, 20, 30, 0.02);
+      --otp-bg: #fcfcfd;
+      --otp-border: #e0e0e6;
+    }
+
+    /* ========================================================================= */
+    /* THEME 3: APPLE MODERNIST CLEAN (Stone Canvas & Subtle Frosted Elevation)  */
+    /* ========================================================================= */
+    .theme-apple-modernist {
+      --bg: #f5f5f7;
+      --card-bg: #ffffff;
+      --card-subtle: #e8e8ed;
+      --border: #e5e5ea;
+      --border-subtle: #ebebef;
+      --text-main: #1d1d1f;
+      --text-muted: #86868b;
+      --primary: #1d1d1f;
+      --primary-hover: #333336;
+      --primary-text: #ffffff;
+      --accent-surface: #f5f5f7;
+      --accent-border: #d2d2d7;
+      --badge-success-bg: rgba(52, 199, 89, 0.12);
+      --badge-success-border: rgba(52, 199, 89, 0.3);
+      --badge-success-text: #28a745;
+      --badge-warning-bg: rgba(255, 149, 0, 0.12);
+      --badge-warning-border: rgba(255, 149, 0, 0.3);
+      --badge-warning-text: #d97706;
+      --badge-danger-bg: rgba(255, 59, 48, 0.12);
+      --badge-danger-border: rgba(255, 59, 48, 0.3);
+      --badge-danger-text: #d32f2f;
+      --badge-info-bg: #e8e8ed;
+      --badge-info-border: #d2d2d7;
+      --badge-info-text: #1d1d1f;
+      --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      --otp-bg: #fbfbfd;
+      --otp-border: #d2d2d7;
+    }
+
+    /* ========================================================================= */
+    /* THEME 4: STRIPE CRISP SLATE (Cool Slate Canvas with High Outdoor Contrast)*/
+    /* ========================================================================= */
+    .theme-stripe-slate {
+      --bg: #f1f5f9;
+      --card-bg: #ffffff;
+      --card-subtle: #e2e8f0;
+      --border: #cbd5e1;
+      --border-subtle: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --primary: #0f172a;
+      --primary-hover: #1e293b;
+      --primary-text: #ffffff;
+      --accent-surface: #e2e8f0;
+      --accent-border: #94a3b8;
+      --badge-success-bg: #ecfdf5;
+      --badge-success-border: #6ee7b7;
+      --badge-success-text: #047857;
+      --badge-warning-bg: #fffbeb;
+      --badge-warning-border: #fcd34d;
+      --badge-warning-text: #b45309;
+      --badge-danger-bg: #fef2f2;
+      --badge-danger-border: #fca5a5;
+      --badge-danger-text: #b91c1c;
+      --badge-info-bg: #e2e8f0;
+      --badge-info-border: #cbd5e1;
+      --badge-info-text: #0f172a;
+      --card-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      --otp-bg: #f8fafc;
+      --otp-border: #cbd5e1;
+    }
+
+    /* Shared Layout Components */
+    .showcase-container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+
+    .top-control-dock {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.15rem 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .dock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .dock-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      letter-spacing: -0.015em;
+    }
+
+    .theme-selector-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.65rem;
+    }
+
+    .theme-option-btn {
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--accent-surface);
+      color: var(--text-main);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .theme-option-btn:hover {
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .theme-option-btn.active {
+      border-color: var(--primary);
+      background: var(--card-bg);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .theme-name {
+      font-weight: 700;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .theme-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    .palette-swatches {
+      display: flex;
+      gap: 0.35rem;
+      margin-top: 0.35rem;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+    }
+
+    /* Live Preview Grid */
+    .preview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 820px) {
+      .preview-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .preview-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.35rem;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .card-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.01em;
+    }
+
+    .card-subtext {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* Badge Pills */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      font-size: 0.725rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-success {
+      background: var(--badge-success-bg);
+      border: 1px solid var(--badge-success-border);
+      color: var(--badge-success-text);
+    }
+
+    .badge-warning {
+      background: var(--badge-warning-bg);
+      border: 1px solid var(--badge-warning-border);
+      color: var(--badge-warning-text);
+    }
+
+    .badge-danger {
+      background: var(--badge-danger-bg);
+      border: 1px solid var(--badge-danger-border);
+      color: var(--badge-danger-text);
+    }
+
+    .badge-info {
+      background: var(--badge-info-bg);
+      border: 1px solid var(--badge-info-border);
+      color: var(--badge-info-text);
+    }
+
+    /* Button Variants */
+    .btn {
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 0.825rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      border: none;
+      outline: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-text);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+
+    .btn-outline:hover {
+      background: var(--accent-surface);
+    }
+
+    /* Apple-Wallet / Digital Handover Card */
+    .otp-ticket {
+      background: var(--otp-bg);
+      border: 1px solid var(--otp-border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      text-align: center;
+    }
+
+    .otp-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.4rem;
+    }
+
+    .otp-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.15rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      color: var(--text-main);
+      padding: 0.35rem 0;
+    }
+
+    /* Meta Info List */
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.55rem 0.85rem;
+      background: var(--accent-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      font-size: 0.8rem;
+    }
+
+    .info-label {
+      color: var(--text-muted);
+    }
+
+    .info-value {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+  </style>
+</head>
+<body id="previewBody" class="theme-vercel-geist">
+
+  <div class="showcase-container">
+
+    <!-- TOP CONTROL DOCK -->
+    <div class="top-control-dock">
+      <div class="dock-header">
+        <div>
+          <div class="dock-title">
+            <span>☀️ RescueGrid Light Mode Interactive Showcase</span>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Click any palette below to instantly preview the live application components in that theme:
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="badge badge-info" id="currentPalettePill">Active: 1. Vercel Geist Light</span>
+          <a href="/" style="font-size: 0.775rem; color: var(--text-muted); text-decoration: none; padding: 0.35rem 0.65rem; border: 1px solid var(--border); border-radius: 6px;">
+            ← Back to App
+          </a>
+        </div>
+      </div>
+
+      <!-- PALETTE BUTTONS -->
+      <div class="theme-selector-grid">
+        <!-- 1: Vercel Geist -->
+        <button class="theme-option-btn active" onclick="setPalette('theme-vercel-geist', '1. Vercel Geist Light (Direct 1:1 Invert of Obsidian)', this)">
+          <div class="theme-name">
+            <span>1. Vercel Geist Light</span>
+            <span style="font-size: 0.7rem;">⭐ Mirror</span>
+          </div>
+          <div class="theme-desc">
+            Exact 1:1 inversion of Obsidian. Pitch-black buttons, pure white canvas, razor zinc borders, zero blue.
+          </div>
+          <div class="palette-swatches">
+            <span class="swatch" style="background: #fafafa;" title="Canvas: #FAFAFA"></span>
+            <span class="swatch" style="background: #ffffff;" title="Card: #FFFFFF"></span>
+            <span class="swatch" style="background: #000000;" title="Primary Button: #000000"></span>
+            <span class="swatch" style="background: #e4e4e7;" title="Border: #E4E4E7"></span>
+            <span class="swatch" style="background: #059669;" title="Status: #059669"></span>
+          </div>
+        </button>
+
+        <!-- 2: Linear Porcelain -->
+        <button class="theme-option-btn" onclick="setPalette('theme-linear-porcelain', '2. Linear Porcelain (Warm Gray & Graphite)', this)">
+          <div class="theme-name">
+            <span>2. Linear Porcelain</span>
+            <span style="font-size: 0.7rem;">Calm</span>
+          </div>
+          <div class="theme-desc">
+            Soft porcelain canvas (#f8f8fa), graphite black buttons (#18181b), and muted borders. Ultra gentle on eyes.
+          </div>
+          <div class="palette-swatches">
+            <span class="swatch" style="background: #f8f8fa;" title="Canvas: #F8F8FA"></span>
+            <span class="swatch" style="background: #ffffff;" title="Card: #FFFFFF"></span>
+            <span class="swatch" style="background: #18181b;" title="Primary Button: #18181b"></span>
+            <span class="swatch" style="background: #e5e5eb;" title="Border: #E5E5EB"></span>
+            <span class="swatch" style="background: #16a34a;" title="Status: #16A34A"></span>
+          </div>
+        </button>
+
+        <!-- 3: Apple Modernist -->
+        <button class="theme-option-btn" onclick="setPalette('theme-apple-modernist', '3. Apple Modernist (Stone & Crisp Dark Gray)', this)">
+          <div class="theme-name">
+            <span>3. Apple Modernist</span>
+            <span style="font-size: 0.7rem;">Clean</span>
+          </div>
+          <div class="theme-desc">
+            Apple-style stone canvas (#f5f5f7), solid white cards, #1d1d1f buttons, and refined frosted borders.
+          </div>
+          <div class="palette-swatches">
+            <span class="swatch" style="background: #f5f5f7;" title="Canvas: #F5F5F7"></span>
+            <span class="swatch" style="background: #ffffff;" title="Card: #FFFFFF"></span>
+            <span class="swatch" style="background: #1d1d1f;" title="Primary Button: #1D1D1F"></span>
+            <span class="swatch" style="background: #e5e5ea;" title="Border: #E5E5EA"></span>
+            <span class="swatch" style="background: #34c759;" title="Status: #34C759"></span>
+          </div>
+        </button>
+
+        <!-- 4: Stripe Slate -->
+        <button class="theme-option-btn" onclick="setPalette('theme-stripe-slate', '4. Stripe Crisp Slate (High Outdoor Contrast)', this)">
+          <div class="theme-name">
+            <span>4. Stripe Crisp Slate</span>
+            <span style="font-size: 0.7rem;">High-Contrast</span>
+          </div>
+          <div class="theme-desc">
+            Cool slate canvas (#f1f5f9), darker hairline borders (#cbd5e1), and deep navy-slate #0f172a buttons.
+          </div>
+          <div class="palette-swatches">
+            <span class="swatch" style="background: #f1f5f9;" title="Canvas: #F1F5F9"></span>
+            <span class="swatch" style="background: #ffffff;" title="Card: #FFFFFF"></span>
+            <span class="swatch" style="background: #0f172a;" title="Primary Button: #0F172A"></span>
+            <span class="swatch" style="background: #cbd5e1;" title="Border: #CBD5E1"></span>
+            <span class="swatch" style="background: #047857;" title="Status: #047857"></span>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- LIVE COMPONENT PREVIEWS -->
+    <div class="preview-grid">
+
+      <!-- COMPONENT 1: Surplus Batch Card -->
+      <div class="preview-card">
+        <div class="card-header-row">
+          <div>
+            <div class="card-title">Hot Vegetable Biryani & Gravy</div>
+            <div class="card-subtext">📍 Grand Palace Hotel &bull; Commercial Banquet Kitchen</div>
+          </div>
+          <span class="badge badge-success">● 96.6% Match</span>
+        </div>
+
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+          <span class="badge badge-info">Vegetarian</span>
+          <span class="badge badge-info">50 kg Available</span>
+          <span class="badge badge-warning">Expires in 3h 15m</span>
+        </div>
+
+        <div class="info-list">
+          <div class="info-item">
+            <span class="info-label">Pickup Deadline Slack:</span>
+            <span class="info-value">+42 mins feasible</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Transit Round-Trip ETA:</span>
+            <span class="info-value">18 mins @ 25 km/h</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Priority Reservation Window:</span>
+            <span class="info-value" style="color: var(--badge-warning-text);">Rank #1 Exclusive (3m 22s)</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.65rem; margin-top: 0.25rem;">
+          <button class="btn btn-primary" style="flex: 1;">Claim 25 kg Batch</button>
+          <button class="btn btn-outline">Match Details</button>
+        </div>
+      </div>
+
+      <!-- COMPONENT 2: Digital Handover Pass (Apple Wallet style in Light Mode) -->
+      <div class="preview-card">
+        <div class="card-header-row">
+          <div>
+            <div class="card-title">Digital Handover Custody Pass</div>
+            <div class="card-subtext">Cryptographic HMAC-SHA256 Token Gate</div>
+          </div>
+          <span class="badge badge-warning">Awaiting Pickup</span>
+        </div>
+
+        <div class="otp-ticket">
+          <div class="otp-label">Courier Physical Handover Verification Code</div>
+          <div class="otp-code">622 745</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Rider presents this code at the donor loading dock to authorize batch release.
+          </div>
+        </div>
+
+        <div class="info-list">
+          <div class="info-item">
+            <span class="info-label">Assigned Courier:</span>
+            <span class="info-value">Vikram Singh (+91 98765 43210)</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Anti-Tamper Signature:</span>
+            <span class="info-value" style="font-family: monospace; font-size: 0.725rem;">e7bd...9c69</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.65rem; margin-top: 0.25rem;">
+          <button class="btn btn-primary" style="flex: 1;">Enlarge Pass for Donor</button>
+          <button class="btn btn-outline">Reassign Courier</button>
+        </div>
+      </div>
+
+      <!-- COMPONENT 3: Rider Navigation & Dispatch Terminal -->
+      <div class="preview-card">
+        <div class="card-header-row">
+          <div>
+            <div class="card-title">Courier Active Mission</div>
+            <div class="card-subtext">Mission #RG-8821 &bull; 25 kg Cooked Food</div>
+          </div>
+          <span class="badge badge-info">In Transit</span>
+        </div>
+
+        <div class="info-list">
+          <div class="info-item">
+            <span class="info-label">Pickup Location:</span>
+            <span class="info-value">Grand Palace Hotel (Entrance Dock B)</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Destination Facility:</span>
+            <span class="info-value">Hope Haven Community Shelter</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Handling Caution:</span>
+            <span class="info-value">Keep upright; thermal container verified</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.65rem; margin-top: 0.25rem;">
+          <button class="btn btn-primary" style="flex: 1;">Open GPS Navigation Map</button>
+          <button class="btn btn-outline" style="color: var(--badge-danger-text);">Report Delay</button>
+        </div>
+      </div>
+
+      <!-- COMPONENT 4: Top Navigation & Action Controls -->
+      <div class="preview-card">
+        <div class="card-header-row">
+          <div>
+            <div class="card-title">Segmented Tabs & Control Pills</div>
+            <div class="card-subtext">Interactive tabs, action pills, and status badges</div>
+          </div>
+          <span class="badge badge-success">System 100% UP</span>
+        </div>
+
+        <!-- Segmented Tab Simulation -->
+        <div style="display: flex; background: var(--accent-surface); padding: 0.3rem; border-radius: 8px; border: 1px solid var(--border); gap: 0.25rem;">
+          <div style="flex: 1; text-align: center; padding: 0.45rem; border-radius: 6px; background: var(--card-bg); font-weight: 700; font-size: 0.775rem; color: var(--text-main); box-shadow: var(--card-shadow);">
+            Inbound Radar (4)
+          </div>
+          <div style="flex: 1; text-align: center; padding: 0.45rem; border-radius: 6px; font-weight: 500; font-size: 0.775rem; color: var(--text-muted);">
+            Active Demand (1)
+          </div>
+          <div style="flex: 1; text-align: center; padding: 0.45rem; border-radius: 6px; font-weight: 500; font-size: 0.775rem; color: var(--text-muted);">
+            Claimed (6)
+          </div>
+        </div>
+
+        <!-- Status Badges Row -->
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <span class="badge badge-success">✓ Verified Node</span>
+          <span class="badge badge-warning">⚡ Dynamic Window (04:12)</span>
+          <span class="badge badge-danger">⏱ 15m Expiry Safety Gate</span>
+          <span class="badge badge-info">3x API Replicas</span>
+        </div>
+
+        <div style="display: flex; gap: 0.65rem; margin-top: 0.25rem;">
+          <button class="btn btn-primary" style="flex: 1;">Primary Action Button</button>
+          <button class="btn btn-outline">Secondary Button</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- INSTRUCTIONS FOOTER -->
+    <div style="margin-top: 2rem; padding: 1.25rem; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; font-size: 0.85rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <strong style="color: var(--text-main);">Notice how all 4 options remove the electric blue:</strong> They replace it with pitch black / deep charcoal buttons and clean neutral hairline borders, matching your Vercel Obsidian dark mode philosophy perfectly.
+      </div>
+      <div>
+        <span style="font-weight: 700; color: var(--text-main);">Tell the AI which palette number (1, 2, 3, or 4) you prefer!</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function setPalette(paletteClass, paletteName, btnEl) {
+      document.getElementById('previewBody').className = paletteClass;
+      document.getElementById('currentPalettePill').textContent = 'Active: ' + paletteName;
+
+      // Update active button state
+      document.querySelectorAll('.theme-option-btn').forEach(btn => btn.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+    }
+  </script>
+
+</body>
+</html>

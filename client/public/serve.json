@@ -1,0 +1,8 @@
+{
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/light-theme-preview.html", "destination": "/light-theme-preview.html" },
+    { "source": "/theme-preview.html", "destination": "/theme-preview.html" },
+    { "source": "!(*.html|*.js|*.css|*.png|*.jpg|*.svg|*.ico|*.json)", "destination": "/index.html" }
+  ]
+}
