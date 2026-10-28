@@ -395,7 +395,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
           </TabsList>
 
           <Badge variant="secondary" style={{ gap: '0.35rem' }}>
-            <Zap size={12} color="#2563eb" />
+            <Zap size={12} color="var(--primary)" />
             <span>Redis GEO Proximity &bull; &lt;5ms</span>
           </Badge>
         </div>
@@ -1459,7 +1459,11 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {activeCount === 0 ? (
+                            {r.is_available === false ? (
+                              <Badge variant="outline" style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)', fontSize: '0.7rem' }}>
+                                Off Duty / Unavailable
+                              </Badge>
+                            ) : activeCount === 0 ? (
                               <Badge variant="outline" style={{ color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.3)', fontSize: '0.7rem' }}>
                                 Available
                               </Badge>

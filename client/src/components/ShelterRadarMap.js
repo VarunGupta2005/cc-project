@@ -20,13 +20,13 @@ const ROUTE_PALETTE = [
   '#db2777', // Pink
 ];
 
-// Professional Shelter Central Hub Pin (Sleek Royal Blue with SVG Building)
+// Professional Shelter Central Hub Pin (Sleek Emerald with SVG Building)
 const createShelterIcon = () =>
   L.divIcon({
     className: 'custom-shelter-pin',
     html: `
       <div style="
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        background: linear-gradient(135deg, #10b981, #059669);
         color: white;
         width: 38px;
         height: 38px;
@@ -35,7 +35,7 @@ const createShelterIcon = () =>
         align-items: center;
         justify-content: center;
         border: 2.5px solid #ffffff;
-        box-shadow: 0 0 16px rgba(37, 99, 235, 0.65), 0 4px 10px rgba(0, 0, 0, 0.35);
+        box-shadow: 0 0 16px rgba(16, 185, 129, 0.5), 0 4px 10px rgba(0, 0, 0, 0.25);
       ">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
@@ -198,14 +198,14 @@ export default function ShelterRadarMap({
 
           <FitRadarBounds center={center} radiusKm={radiusKm} />
 
-          {/* 1. Dynamic Blue Radar Scan Perimeter */}
+          {/* 1. Dynamic Radar Scan Perimeter */}
           <Circle
             center={center}
             radius={radiusMeters}
             pathOptions={{
-              color: '#3b82f6',
-              fillColor: '#1d4ed8',
-              fillOpacity: 0.12,
+              color: '#10b981',
+              fillColor: '#059669',
+              fillOpacity: 0.08,
               weight: 2,
               dashArray: '5, 8',
             }}
@@ -425,7 +425,7 @@ export default function ShelterRadarMap({
               width: '18px',
               height: '18px',
               borderRadius: '50%',
-              backgroundColor: '#2563eb',
+              backgroundColor: '#10b981',
               color: '#ffffff',
               display: 'inline-flex',
               alignItems: 'center',
@@ -445,8 +445,8 @@ export default function ShelterRadarMap({
                 width: '12px',
                 height: '12px',
                 borderRadius: '50%',
-                backgroundColor: 'rgba(59, 130, 246, 0.3)',
-                border: '1.5px solid #3b82f6',
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                border: '1.5px solid #10b981',
                 display: 'inline-block',
               }}
             />

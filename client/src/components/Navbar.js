@@ -117,9 +117,9 @@ export default function Navbar({ activeTab, setActiveTab, session, onLogout }) {
           <button
             onClick={() => setActiveTab('auth')}
             style={{
-              backgroundColor: '#2563eb',
+              backgroundColor: 'var(--primary)',
               border: 'none',
-              color: '#fff',
+              color: 'var(--primary-foreground)',
               padding: '0.45rem 1.1rem',
               borderRadius: '0.375rem',
               fontSize: '0.85rem',

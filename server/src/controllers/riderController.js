@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { query } from '../config/database.js';
 import { redisClient } from '../config/redis.js';
 import { generateAssignmentOtp, hashTokenDigest } from '../services/tokenService.js';
@@ -17,12 +18,15 @@ export async function assignRider(req, res, next) {
       return res.status(400).json({ error: 'Allocation ID and Rider ID are required' });
     }
 
-    const shelterOrgId = req.user?.org_id;
+    const shelterOrgId = req.user?.org_id || req.user?.organization_id;
     if (req.user?.role === 'SHELTER' && !shelterOrgId) {
       return res.status(403).json({ error: 'Forbidden: Missing shelter organization ID' });
     }
 
-    // 1. Verify allocation exists and belongs to this shelter
+    // 1. Verify allocation exists (or fallback to listing_id if an older claim parcel is passed)
+    let allocation = null;
+    let actualAllocationId = allocation_id;
+
     const allocRes = await query(
       `SELECT a.*, f.food_type, f.pickup_address, f.pickup_deadline
        FROM allocations a
@@ -31,11 +35,34 @@ export async function assignRider(req, res, next) {
       [allocation_id]
     );
 
-    if (allocRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Allocation not found' });
+    if (allocRes.rows.length > 0) {
+      allocation = allocRes.rows[0];
+    } else {
+      // Graceful fallback: check if allocation_id is actually a listing_id
+      const listingRes = await query(
+        `SELECT * FROM food_listings WHERE id = $1`,
+        [allocation_id]
+      );
+      if (listingRes.rows.length > 0) {
+        const listing = listingRes.rows[0];
+        const shelterId = listing.claimed_by || shelterOrgId;
+        const newAlloc = await query(
+          `INSERT INTO allocations (listing_id, shelter_id, allocated_kg, status)
+           VALUES ($1, $2, $3, 'RESERVED')
+           RETURNING *`,
+          [listing.id, shelterId, listing.quantity_kg || 10]
+        );
+        allocation = {
+          ...newAlloc.rows[0],
+          food_type: listing.food_type,
+          pickup_address: listing.pickup_address,
+          pickup_deadline: listing.pickup_deadline,
+        };
+        actualAllocationId = allocation.id;
+      } else {
+        return res.status(404).json({ error: 'Allocation not found for this delivery' });
+      }
     }
-
-    const allocation = allocRes.rows[0];
 
     if (req.user?.role === 'SHELTER' && allocation.shelter_id !== shelterOrgId) {
       return res.status(403).json({
@@ -49,9 +76,9 @@ export async function assignRider(req, res, next) {
       });
     }
 
-    // 2. Verify rider belongs to this shelter organization
+    // 2. Verify rider belongs to this shelter organization and is available
     const riderRes = await query(
-      `SELECT id, full_name, email, phone, role, organization_id
+      `SELECT id, full_name, email, phone, role, organization_id, COALESCE(is_available, true) as is_available
        FROM users
        WHERE id = $1 AND role IN ('RIDER', 'COURIER')`,
       [rider_id]
@@ -62,6 +89,12 @@ export async function assignRider(req, res, next) {
     }
 
     const rider = riderRes.rows[0];
+
+    if (rider.is_available === false) {
+      return res.status(400).json({
+        error: `Cannot assign task: Rider ${rider.full_name} is currently marked as Off Duty / Unavailable.`,
+      });
+    }
 
     if (shelterOrgId && rider.organization_id && rider.organization_id !== shelterOrgId) {
       return res.status(403).json({
@@ -74,22 +107,22 @@ export async function assignRider(req, res, next) {
       `UPDATE delivery_assignments
        SET status = 'CANCELLED'
        WHERE allocation_id = $1 AND status IN ('ASSIGNED', 'ACCEPTED')`,
-      [allocation_id]
+      [actualAllocationId]
     );
 
     // 4. Create new delivery assignment
     const assignIdRes = await query(`SELECT gen_random_uuid() as id`);
     const newAssignmentId = assignIdRes.rows[0].id;
 
-    // Generate dynamic OTP scoped to (allocation_id, assignment_id, rider_id)
-    const { otpCode } = generateAssignmentOtp(allocation_id, newAssignmentId, rider_id);
+    // Generate dynamic OTP scoped to (actualAllocationId, assignment_id, rider_id)
+    const { otpCode } = generateAssignmentOtp(actualAllocationId, newAssignmentId, rider_id);
 
     const insertRes = await query(
       `INSERT INTO delivery_assignments 
         (id, allocation_id, rider_id, assigned_by, status, pickup_otp, notes)
        VALUES ($1, $2, $3, $4, 'ASSIGNED', $5, $6)
        RETURNING *`,
-      [newAssignmentId, allocation_id, rider_id, req.user?.id, otpCode, notes || null]
+      [newAssignmentId, actualAllocationId, rider_id, req.user?.id, otpCode, notes || null]
     );
 
     const assignment = insertRes.rows[0];
@@ -99,7 +132,7 @@ export async function assignRider(req, res, next) {
       `UPDATE allocations 
        SET status = 'ASSIGNED', updated_at = CURRENT_TIMESTAMP 
        WHERE id = $1 AND status = 'RESERVED'`,
-      [allocation_id]
+      [actualAllocationId]
     );
 
     // Update handover_audits record with assignment token digest (redacting plaintext)
@@ -108,7 +141,7 @@ export async function assignRider(req, res, next) {
       `UPDATE handover_audits 
        SET courier_id = $1, allocation_id = $2, token_digest = $3, verification_token = $4
        WHERE listing_id = $5`,
-      [rider_id, allocation_id, digest, otpCode, allocation.listing_id]
+      [rider_id, actualAllocationId, digest, otpCode, allocation.listing_id]
     );
 
     // Notify connected clients via Redis Pub/Sub
@@ -116,7 +149,7 @@ export async function assignRider(req, res, next) {
       'channel:alerts',
       JSON.stringify({
         event: 'RIDER_ASSIGNED',
-        allocationId: allocation_id,
+        allocationId: actualAllocationId,
         assignmentId: assignment.id,
         riderId: rider_id,
         riderName: rider.full_name,
@@ -271,6 +304,13 @@ export async function getMyTasks(req, res, next) {
   try {
     const riderId = req.user?.id;
 
+    // Fetch rider availability status
+    const riderInfoRes = await query(
+      `SELECT is_available FROM users WHERE id = $1`,
+      [riderId]
+    );
+    const isAvailable = riderInfoRes.rows[0]?.is_available !== false;
+
     const tasksRes = await query(
       `SELECT d.id as assignment_id, d.status as assignment_status, d.pickup_otp, d.assigned_at, d.accepted_at, d.picked_up_at, d.completed_at,
               a.id as allocation_id, a.allocated_kg, a.status as allocation_status,
@@ -291,6 +331,51 @@ export async function getMyTasks(req, res, next) {
     res.json({
       count: tasksRes.rows.length,
       tasks: tasksRes.rows,
+      is_available: isAvailable,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Rider Portal: Update availability status (On Duty / Available vs Off Duty / Unavailable).
+ */
+export async function updateRiderAvailability(req, res, next) {
+  try {
+    const riderId = req.user?.id;
+    const { is_available } = req.body;
+
+    if (typeof is_available !== 'boolean') {
+      return res.status(400).json({ error: 'is_available boolean required' });
+    }
+
+    const updateRes = await query(
+      `UPDATE users 
+       SET is_available = $1 
+       WHERE id = $2 
+       RETURNING id, full_name, email, role, is_available`,
+      [is_available, riderId]
+    );
+
+    if (updateRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Rider not found' });
+    }
+
+    await redisClient.publish(
+      'channel:alerts',
+      JSON.stringify({
+        event: 'RIDER_AVAILABILITY_CHANGED',
+        riderId,
+        is_available,
+        timestamp: new Date().toISOString(),
+      })
+    );
+
+    res.json({
+      message: `Availability updated to ${is_available ? 'Available / On Duty' : 'Unavailable / Off Duty'}`,
+      is_available,
+      rider: updateRes.rows[0],
     });
   } catch (err) {
     next(err);
@@ -302,7 +387,7 @@ export async function getMyTasks(req, res, next) {
  */
 export async function getShelterRiders(req, res, next) {
   try {
-    const shelterOrgId = req.user?.org_id;
+    const shelterOrgId = req.user?.org_id || req.user?.organization_id;
 
     if (!shelterOrgId) {
       return res.status(400).json({ error: 'Shelter organization ID required' });
@@ -310,11 +395,12 @@ export async function getShelterRiders(req, res, next) {
 
     const ridersRes = await query(
       `SELECT u.id, u.full_name, u.email, u.phone, u.role, u.created_at,
+              COALESCE(u.is_available, true) as is_available,
               COUNT(CASE WHEN d.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP') THEN 1 END) as active_tasks_count
        FROM users u
        LEFT JOIN delivery_assignments d ON d.rider_id = u.id
        WHERE u.organization_id = $1 AND u.role IN ('RIDER', 'COURIER')
-       GROUP BY u.id, u.full_name, u.email, u.phone, u.role, u.created_at
+       GROUP BY u.id, u.full_name, u.email, u.phone, u.role, u.created_at, u.is_available
        ORDER BY u.full_name ASC`,
       [shelterOrgId]
     );
@@ -333,7 +419,7 @@ export async function getShelterRiders(req, res, next) {
 export async function registerShelterRider(req, res, next) {
   try {
     const { full_name, email, phone, password } = req.body;
-    const shelterOrgId = req.user?.org_id;
+    const shelterOrgId = req.user?.org_id || req.user?.organization_id;
 
     if (!shelterOrgId) {
       return res.status(403).json({ error: 'Forbidden: Missing shelter organization ID' });
@@ -344,22 +430,20 @@ export async function registerShelterRider(req, res, next) {
     }
 
     // Default password 'password123' if omitted
-    import('bcryptjs').then(async (bcrypt) => {
-      const salt = await bcrypt.genSalt(10);
-      const hash = await bcrypt.hash(password || 'password123', salt);
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password || 'password123', salt);
 
-      const insertRes = await query(
-        `INSERT INTO users (full_name, email, phone, password_hash, role, organization_id)
-         VALUES ($1, $2, $3, $4, 'RIDER', $5)
-         RETURNING id, full_name, email, phone, role, organization_id, created_at`,
-        [full_name, email.toLowerCase(), phone || null, hash, shelterOrgId]
-      );
+    const insertRes = await query(
+      `INSERT INTO users (full_name, email, phone, password_hash, role, organization_id)
+       VALUES ($1, $2, $3, $4, 'RIDER', $5)
+       RETURNING id, full_name, email, phone, role, organization_id, created_at`,
+      [full_name, email.toLowerCase(), phone || null, hash, shelterOrgId]
+    );
 
-      res.status(201).json({
-        message: `Rider ${full_name} successfully registered to your shelter!`,
-        rider: insertRes.rows[0],
-      });
-    }).catch(next);
+    res.status(201).json({
+      message: `Rider ${full_name} successfully registered to your shelter!`,
+      rider: insertRes.rows[0],
+    });
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'A user with this email already exists' });

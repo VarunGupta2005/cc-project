@@ -298,6 +298,21 @@ export async function acceptRiderTask(assignmentId) {
   return data;
 }
 
+export async function updateRiderAvailability(isAvailable) {
+  const token = localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/riders/availability`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ is_available: isAvailable }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update rider availability');
+  return data;
+}
+
 export async function updateOrganizationProfile(orgId, updateData) {
   const token = localStorage.getItem('rg_token');
   const headers = { 'Content-Type': 'application/json' };

@@ -32,8 +32,9 @@ export default function AssignRiderModal({
         .then((res) => {
           const list = res.riders || [];
           setRiders(list);
-          if (list.length > 0 && !selectedRiderId) {
-            setSelectedRiderId(list[0].id);
+          const availableList = list.filter((r) => r.is_available !== false);
+          if (availableList.length > 0 && !selectedRiderId) {
+            setSelectedRiderId(availableList[0].id);
           }
         })
         .catch((err) => {
@@ -48,12 +49,12 @@ export default function AssignRiderModal({
 
   if (!isOpen || !delivery) return null;
 
-  const allocationId = delivery.allocation_id;
+  const allocationId = delivery.allocation_id || delivery.id;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!allocationId) {
-      setError('Missing allocation ID for this delivery.');
+      setError('Missing allocation reference for this delivery.');
       return;
     }
     if (!selectedRiderId) {
@@ -260,23 +261,29 @@ export default function AssignRiderModal({
                   {riders.map((r) => {
                     const isSelected = selectedRiderId === r.id;
                     const activeCount = parseInt(r.active_tasks_count || 0, 10);
+                    const isRiderAvailable = r.is_available !== false;
                     return (
                       <div
                         key={r.id}
-                        onClick={() => setSelectedRiderId(r.id)}
+                        onClick={() => {
+                          if (isRiderAvailable) {
+                            setSelectedRiderId(r.id);
+                          }
+                        }}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
                           padding: '0.75rem 1rem',
                           borderRadius: '8px',
+                          opacity: isRiderAvailable ? 1 : 0.6,
                           border: isSelected
                             ? '1px solid #38bdf8'
                             : '1px solid rgba(255, 255, 255, 0.08)',
                           backgroundColor: isSelected
                             ? 'rgba(56, 189, 248, 0.08)'
                             : 'rgba(255, 255, 255, 0.02)',
-                          cursor: 'pointer',
+                          cursor: isRiderAvailable ? 'pointer' : 'not-allowed',
                           transition: 'all 0.15s ease',
                         }}
                       >
@@ -310,7 +317,11 @@ export default function AssignRiderModal({
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {activeCount === 0 ? (
+                          {!isRiderAvailable ? (
+                            <Badge variant="outline" style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)', fontSize: '0.7rem' }}>
+                              Off Duty / Unavailable
+                            </Badge>
+                          ) : activeCount === 0 ? (
                             <Badge variant="outline" style={{ color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.3)', fontSize: '0.7rem' }}>
                               Available
                             </Badge>
@@ -323,8 +334,11 @@ export default function AssignRiderModal({
                             type="radio"
                             name="selected_rider"
                             checked={isSelected}
-                            onChange={() => setSelectedRiderId(r.id)}
-                            style={{ accentColor: '#38bdf8', cursor: 'pointer' }}
+                            disabled={!isRiderAvailable}
+                            onChange={() => {
+                              if (isRiderAvailable) setSelectedRiderId(r.id);
+                            }}
+                            style={{ accentColor: '#38bdf8', cursor: isRiderAvailable ? 'pointer' : 'not-allowed' }}
                           />
                         </div>
                       </div>

@@ -12,7 +12,7 @@ import {
   Check,
   Layers,
 } from 'lucide-react';
-import { fetchRiderTasks, acceptRiderTask, cancelRiderAssignment } from '../services/api';
+import { fetchRiderTasks, acceptRiderTask, cancelRiderAssignment, updateRiderAvailability } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -25,6 +25,8 @@ export default function RiderPage({ session }) {
   const [activeTab, setActiveTab] = useState('active');
   const [copiedOtp, setCopiedOtp] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -32,6 +34,9 @@ export default function RiderPage({ session }) {
       setErrorMsg(null);
       const data = await fetchRiderTasks();
       setTasks(data.tasks || []);
+      if (data.is_available !== undefined) {
+        setIsAvailable(data.is_available);
+      }
     } catch (err) {
       setErrorMsg(err.message || 'Failed to load assigned rider tasks');
     } finally {

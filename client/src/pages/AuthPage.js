@@ -97,12 +97,12 @@ export default function AuthPage({ onLoginSuccess }) {
           width: '48px',
           height: '48px',
           borderRadius: 'var(--radius)',
-          background: 'linear-gradient(135deg, #2563eb, #3b82f6)',
-          color: '#ffffff',
+          background: 'var(--primary)',
+          color: 'var(--primary-foreground)',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+          boxShadow: 'var(--shadow-sm)',
           marginBottom: '0.75rem',
         }}>
           <Zap size={24} strokeWidth={2.5} />

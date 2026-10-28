@@ -1,50 +1,50 @@
 :root {
-  /* Shadcn UI Modern Light Mode Tokens */
-  --background: #f8fafc;        /* Slate-50 clean canvas */
-  --foreground: #0f172a;        /* Slate-900 crisp primary text */
+  /* Shadcn UI Apple Modernist Clean Light Mode Tokens */
+  --background: #f5f5f7;        /* Clean Apple stone canvas */
+  --foreground: #1d1d1f;        /* Deep charcoal crisp primary text */
 
-  --card: #ffffff;              /* Crisp pure white */
-  --card-foreground: #0f172a;
+  --card: #ffffff;              /* Elevated crisp white card */
+  --card-foreground: #1d1d1f;
 
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover-foreground: #1d1d1f;
 
-  --primary: #2563eb;           /* Modern Blue (Apple/Shadcn) */
+  --primary: #1d1d1f;           /* Apple Modernist Dark Stone / Black */
   --primary-foreground: #ffffff;
-  --primary-hover: #1d4ed8;
+  --primary-hover: #333336;
 
-  --secondary: #f1f5f9;         /* Slate-100 */
-  --secondary-foreground: #334155;
-  --secondary-hover: #e2e8f0;
+  --secondary: #e8e8ed;         /* Frosted stone secondary */
+  --secondary-foreground: #1d1d1f;
+  --secondary-hover: #dedee3;
 
-  --muted: #f8fafc;
-  --muted-foreground: #64748b;  /* Slate-500 */
+  --muted: #f5f5f7;
+  --muted-foreground: #86868b;  /* Apple neutral subtext */
 
-  --accent: #eff6ff;            /* Blue-50 */
-  --accent-foreground: #1e40af; /* Blue-800 */
+  --accent: #e8e8ed;            /* Clean neutral interactive surface */
+  --accent-foreground: #1d1d1f;
 
-  --destructive: #ef4444;       /* Red-500 */
+  --destructive: #ef4444;       /* High-contrast Red */
   --destructive-foreground: #ffffff;
   --destructive-bg: #fef2f2;
   --destructive-border: #fecaca;
   --destructive-text: #b91c1c;
 
-  --success: #10b981;           /* Emerald-500 */
+  --success: #10b981;           /* Emerald */
   --success-foreground: #ffffff;
   --success-bg: #ecfdf5;
   --success-border: #a7f3d0;
   --success-text: #065f46;
 
-  --warning: #f59e0b;           /* Amber-500 */
+  --warning: #f59e0b;           /* Amber */
   --warning-foreground: #ffffff;
   --warning-bg: #fffbeb;
   --warning-border: #fde68a;
   --warning-text: #b45309;
 
-  --border: #e2e8f0;            /* Slate-200 */
-  --border-subtle: #f1f5f9;
-  --input: #e2e8f0;
-  --ring: #3b82f6;
+  --border: #e5e5ea;            /* Hairline stone border */
+  --border-subtle: #ebebef;
+  --input: #e5e5ea;
+  --ring: #1d1d1f;
 
   --radius-sm: 6px;
   --radius: 10px;
@@ -53,10 +53,10 @@
 
   /* Subtle Shadcn / Apple Elevation Shadows */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.07), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
 }
 
 .dark {
@@ -512,9 +512,9 @@ body {
   width: 32px;
   height: 32px;
   border-radius: var(--radius);
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .brand-text {
@@ -918,7 +918,7 @@ body {
   left: 20%;
   right: 20%;
   height: 3px;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  background: linear-gradient(90deg, #1d1d1f, #86868b);
   border-radius: 0 0 4px 4px;
 }
 
@@ -927,11 +927,11 @@ body {
   font-size: 2.25rem;
   font-weight: 800;
   letter-spacing: 0.35rem;
-  color: #1d4ed8;
+  color: #1d1d1f;
   padding: 0.75rem 1rem;
   margin: 0.75rem 0;
-  background-color: #eff6ff;
-  border: 1px dashed #93c5fd;
+  background-color: #fbfbfd;
+  border: 1px dashed #d2d2d7;
   border-radius: var(--radius);
   display: inline-block;
 }

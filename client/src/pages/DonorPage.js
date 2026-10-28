@@ -501,7 +501,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>
                   Food Rescued
                 </span>
-                <Scale size={16} color="#2563eb" />
+                <Scale size={16} color="var(--primary)" />
               </div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--foreground)', marginTop: '0.25rem' }}>
                 {totalKgDonated} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--muted-foreground)' }}>kg</span>
@@ -635,7 +635,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                             disabled={loadingRecsId === item.id}
                             style={{ fontSize: '0.75rem', gap: '0.35rem', height: '28px' }}
                           >
-                            <Sparkles size={12} color="#2563eb" />
+                            <Sparkles size={12} color="var(--primary)" />
                             <span>{recsMap[item.id] ? 'Hide Matches' : 'Smart Feasible Matches'}</span>
                           </Button>
                         </div>

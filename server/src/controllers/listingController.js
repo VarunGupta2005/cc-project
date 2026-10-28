@@ -580,7 +580,7 @@ export async function getAllListings(req, res, next) {
          FROM allocations a
          LEFT JOIN delivery_assignments d ON d.allocation_id = a.id AND d.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'COMPLETED')
          LEFT JOIN users ru ON ru.id = d.rider_id
-         WHERE a.listing_id = f.id AND (a.shelter_id = $1::uuid OR $1::uuid IS NULL)
+         WHERE a.listing_id = f.id AND (a.shelter_id = f.claimed_by OR a.shelter_id = $1::uuid OR $1::uuid IS NULL)
          ORDER BY a.created_at DESC
          LIMIT 1
        ) alloc ON true

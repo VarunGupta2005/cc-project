@@ -1,0 +1,15 @@
+# RescueGrid System Rules & Memory Guard
+
+- User Roles:
+  - DONOR (Food Producer): Posts surplus, verifies arriving driver OTPs, views ESG metrics.
+  - SHELTER (Food Consumer): Scans radar, claims batches (full/partial), gets 6-digit OTP pass, confirms delivery.
+- Atomic Concurrency:
+  - Redis Lua script enforces single-winner atomic locking.
+  - 3-Tier priority windows (0-5m Tier 1 exclusive, 5-15m Tier 2 top-5, >15m open).
+- Biological Countdown:
+  - Never reset expiration timers on cancellation.
+  - If cancelled with >15m left, restore to radar with remaining TTL.
+  - If cancelled with <=15m left, transition to EXPIRED.
+- Cryptographic OTP:
+  - 6-digit HMAC-SHA256 code verified with crypto.timingSafeEqual. Rate-limited to 5 failed attempts per 5 minutes.
+- Rule: Do not modify working code unless explicitly requested by the user.
