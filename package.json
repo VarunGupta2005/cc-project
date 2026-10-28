@@ -8,6 +8,7 @@
     "test:units": "node scripts/test_all_components.js",
     "test:matching": "node scripts/test_matching_unit.js",
     "test:tiers": "node scripts/test_tiered_and_partial_claims.js",
+    "test:phase7": "node scripts/test_phase7_dispatch_and_security.js",
     "test:evaluation": "node scripts/run_comparative_evaluation.js"
   },
   "dependencies": {

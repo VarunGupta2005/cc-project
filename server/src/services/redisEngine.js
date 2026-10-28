@@ -24,14 +24,17 @@ const CLAIM_LUA_SCRIPT = `
       local created_epoch = tonumber(created_epoch_str)
       if created_epoch and created_epoch > 0 then
           local elapsed = now_epoch - created_epoch
-          if elapsed < 300 then
-              -- Tier 1 Window (0 - 5 min): Exclusive reservation for Rank #1 demand recipient
+          local tier1_limit = tonumber(redis.call('HGET', listing_key, 'tier_1_window_seconds')) or 300
+          local tier2_limit = tonumber(redis.call('HGET', listing_key, 'tier_2_window_seconds')) or 900
+
+          if elapsed < tier1_limit then
+              -- Tier 1 Window (Dynamic based on remaining feasible time): Exclusive reservation for Rank #1 recipient
               if ARGV[1] ~= p1 then
-                  local remaining_lock = 300 - elapsed
+                  local remaining_lock = tier1_limit - elapsed
                   return { 0, 'ERR_PRIORITY_RESERVED', 'TIER_1', tostring(remaining_lock) }
               end
-          elseif elapsed < 900 then
-              -- Tier 2 Window (5 - 15 min): Expanded reservation for Rank #1 and Top-5 feasible recipients
+          elseif elapsed < tier2_limit then
+              -- Tier 2 Window (Dynamic based on remaining feasible time): Expanded reservation for Rank #1 and Top-5 recipients
               if ARGV[1] ~= p1 then
                   local is_tier_2 = false
                   if p2 and p2 ~= '' then
@@ -43,12 +46,12 @@ const CLAIM_LUA_SCRIPT = `
                       end
                   end
                   if not is_tier_2 then
-                      local remaining_lock = 900 - elapsed
+                      local remaining_lock = tier2_limit - elapsed
                       return { 0, 'ERR_PRIORITY_RESERVED', 'TIER_2', tostring(remaining_lock) }
                   end
               end
           end
-          -- Tier 3 Window (>= 15 min): Fully unlocked for all verified recipients in radius
+          -- Tier 3 Window: Fully unlocked for all verified recipients in radius
       end
   end
 
@@ -132,6 +135,8 @@ export async function addDonationToGeo(listingId, lng, lat, ttlSeconds, metadata
     created_at_epoch: Math.floor(Date.now() / 1000).toString(),
     priority_tier_1_recipient: metadata.priority_tier_1_recipient || '',
     priority_tier_2_recipients: metadata.priority_tier_2_recipients || '',
+    tier_1_window_seconds: (metadata.tier_1_window_seconds || 300).toString(),
+    tier_2_window_seconds: (metadata.tier_2_window_seconds || 900).toString(),
   };
 
   multi.hSet(hashKey, hashData);

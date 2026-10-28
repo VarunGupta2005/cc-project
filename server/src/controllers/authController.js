@@ -159,3 +159,48 @@ export async function getProfile(req, res, next) {
     next(err);
   }
 }
+
+export async function updateOrganization(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { name, latitude, longitude, capacity_kg } = req.body;
+
+    const orgRes = await query(`SELECT * FROM organizations WHERE id = $1`, [id]);
+    if (orgRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+    const org = orgRes.rows[0];
+
+    // Authorization: owner user or admin
+    if (req.user && org.user_id !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Forbidden: You cannot modify another organization’s profile' });
+    }
+
+    const newLat = latitude !== undefined && !isNaN(parseFloat(latitude)) ? parseFloat(latitude) : org.latitude;
+    const newLng = longitude !== undefined && !isNaN(parseFloat(longitude)) ? parseFloat(longitude) : org.longitude;
+    const newCap = capacity_kg !== undefined && !isNaN(parseFloat(capacity_kg)) ? parseFloat(capacity_kg) : org.capacity_kg;
+    const newName = name || org.name;
+
+    const updateRes = await query(
+      `UPDATE organizations
+       SET name = $1, latitude = $2, longitude = $3, capacity_kg = $4
+       WHERE id = $5
+       RETURNING *`,
+      [newName, newLat, newLng, newCap, id]
+    );
+
+    const updatedOrg = updateRes.rows[0];
+
+    // If verified shelter, sync coordinates to Redis geo:shelters immediately
+    if (updatedOrg.is_verified && ['SHELTER', 'ORPHANAGE', 'COMMUNITY_KITCHEN'].includes(updatedOrg.org_type)) {
+      await seedShelter(updatedOrg.id, updatedOrg.longitude, updatedOrg.latitude);
+    }
+
+    res.json({
+      message: 'Organization profile updated successfully in PostgreSQL!',
+      organization: updatedOrg,
+    });
+  } catch (err) {
+    next(err);
+  }
+}

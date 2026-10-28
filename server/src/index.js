@@ -14,6 +14,8 @@ import deliveryRoutes from './routes/deliveryRoutes.js';
 import shelterRoutes from './routes/shelterRoutes.js';
 import requestRoutes from './routes/requestRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
+import riderRoutes from './routes/riderRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
 dotenv.config();
@@ -41,6 +43,8 @@ app.use('/api/deliveries', deliveryRoutes);
 app.use('/api/shelters', shelterRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/riders', riderRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error Handling Middleware
 app.use(errorHandler);

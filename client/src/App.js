@@ -1,36 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { Utensils, Building2, Activity, Sun, Moon } from 'lucide-react';
+import { Utensils, Building2, Bike, ShieldCheck, Activity, Sun, Moon } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import AuthPage from './pages/AuthPage';
 import DonorPage from './pages/DonorPage';
 import ShelterPage from './pages/ShelterPage';
+import RiderPage from './pages/RiderPage';
+import AdminPage from './pages/AdminPage';
 import MasterMapPage from './pages/MasterMapPage';
 import AccountPage from './pages/AccountPage';
+import EvaluatorDrawer from './components/EvaluatorDrawer';
 import TokenModal from './components/TokenModal';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import { getStoredSession, clearSession, loginUser, saveSession } from './services/api';
 
 function getHeaderInfo(tab, session) {
-  const isDonor = session?.user?.role === 'DONOR';
+  const role = session?.user?.role || 'DONOR';
   switch (tab) {
     case 'donor':
     case 'donor_broadcast':
       return { title: 'Broadcast Surplus Food', subtitle: 'List prepared surplus meals and notify nearby shelters' };
     case 'donor_active':
-      return { title: 'Active Donations & Handover Gate', subtitle: 'Verify driver OTP codes and track active deliveries' };
+      return { title: 'Active Donations & Handover Gate', subtitle: 'Verify driver OTP codes and track physical custody release' };
     case 'shelter':
     case 'shelter_radar':
       return { title: 'Inbound Food Surplus Radar', subtitle: 'Real-time Redis proximity radar for local hunger shelters' };
+    case 'shelter_demand':
+      return { title: 'Active Food Demand Registration', subtitle: 'Publish verifiable organizational needs to direct donor redistribution' };
     case 'shelter_deliveries':
-      return { title: 'Claimed Deliveries & Verification', subtitle: 'Track courier arrival and verify digital handover tokens' };
+      return { title: 'Claimed Deliveries & Fleet Dispatch', subtitle: 'Assign organization riders and confirm physical receipt' };
+    case 'shelter_riders':
+      return { title: 'Shelter Courier Fleet Management', subtitle: 'Register and manage authorized couriers for your facility' };
+    case 'rider':
+      return { title: 'Rider Task Portal', subtitle: 'Live dispatch missions, GPS navigation, and digital OTP custody pass' };
+    case 'admin':
+    case 'admin_overview':
+      return { title: 'Platform Control Tower', subtitle: 'High-availability cluster health, throughput, and redistribution metrics' };
+    case 'admin_orgs':
+      return { title: 'Organization Verification Queue', subtitle: 'Inspect and approve food donor facilities and hunger shelters' };
+    case 'admin_map':
     case 'map':
       return { title: 'City-Wide Live Dispatch Map', subtitle: 'Real-time Redis geospatial pins & PostgreSQL audit ledger' };
+    case 'admin_audits':
+      return { title: 'Compliance & Custody Ledger', subtitle: 'Cryptographically hashed zero-secret verification audit trail' };
     case 'account':
-      return { title: 'Facility Account & Profile', subtitle: 'Manage organization details, GPS location, and cloud credentials' };
+      return {
+        title: role === 'RIDER' ? 'Rider Profile' : role === 'ADMIN' ? 'Platform Operator Profile' : 'Facility Account & Profile',
+        subtitle: 'Manage organization details, durable GPS coordinates, and cloud credentials',
+      };
     default:
       return {
-        title: isDonor ? 'Kitchen Surplus Portal' : 'Shelter Claiming Portal',
+        title: role === 'DONOR' ? 'Kitchen Surplus Portal' : role === 'SHELTER' ? 'Shelter Claiming Portal' : role === 'RIDER' ? 'Rider Delivery Terminal' : 'Platform Operations Tower',
         subtitle: 'RescueGrid Zero-Waste Redistribution Network',
       };
   }
@@ -41,7 +61,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const saved = getStoredSession();
     if (!saved) return 'auth';
-    return saved.user.role === 'DONOR' ? 'donor' : 'shelter';
+    const r = saved.user?.role;
+    if (r === 'DONOR') return 'donor';
+    if (r === 'SHELTER') return 'shelter_radar';
+    if (r === 'RIDER' || r === 'COURIER') return 'rider';
+    if (r === 'ADMIN') return 'admin_overview';
+    return 'donor';
   });
 
   const [tokenModalData, setTokenModalData] = useState(null);
@@ -83,10 +108,15 @@ export default function App() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const handleLoginSuccess = (user, organization) => {
+  const handleLoginSuccess = (user) => {
     const newSession = getStoredSession();
     setSession(newSession);
-    setActiveTab(user.role === 'DONOR' ? 'donor' : 'shelter');
+    const r = user?.role;
+    if (r === 'DONOR') setActiveTab('donor');
+    else if (r === 'SHELTER') setActiveTab('shelter_radar');
+    else if (r === 'RIDER' || r === 'COURIER') setActiveTab('rider');
+    else if (r === 'ADMIN') setActiveTab('admin_overview');
+    else setActiveTab('donor');
   };
 
   const handleLogout = () => {
@@ -95,17 +125,15 @@ export default function App() {
     setActiveTab('auth');
   };
 
-  const handleSwitchRole = async (targetRole) => {
+  const handleSwitchUser = async (email, password, defaultTab) => {
     try {
-      const email = targetRole === 'DONOR' ? 'donor@grandhotel.com' : 'director@hopehaven.org';
-      const data = await loginUser(email, 'password123');
+      const data = await loginUser(email, password);
       saveSession(data.token, data.user, data.organization);
       const newSession = getStoredSession();
       setSession(newSession);
-      setActiveTab(targetRole === 'DONOR' ? 'donor' : 'shelter');
+      setActiveTab(defaultTab || 'account');
     } catch (err) {
       console.error('Role switch failed:', err);
-      handleLogout();
     }
   };
 
@@ -114,6 +142,7 @@ export default function App() {
   };
 
   const header = getHeaderInfo(activeTab, session);
+  const role = session?.user?.role;
 
   if (!session || activeTab === 'auth') {
     return (
@@ -216,10 +245,14 @@ export default function App() {
               border: '1px solid var(--border)',
               boxShadow: 'var(--shadow-xs)'
             }}>
-              {session?.user?.role === 'DONOR' ? (
-                <Utensils size={14} color="#2563eb" />
+              {role === 'DONOR' ? (
+                <Utensils size={14} color="#f59e0b" />
+              ) : role === 'SHELTER' ? (
+                <Building2 size={14} color="#10b981" />
+              ) : role === 'RIDER' ? (
+                <Bike size={14} color="#38bdf8" />
               ) : (
-                <Building2 size={14} color="#2563eb" />
+                <ShieldCheck size={14} color="#a855f7" />
               )}
               <span style={{ fontWeight: '600', color: 'var(--foreground)' }}>
                 {session?.org?.name || session?.user?.full_name}
@@ -229,8 +262,8 @@ export default function App() {
         </header>
 
         <main className="content-area">
-          {/* Producer (Donor) Views */}
-          {session?.user?.role === 'DONOR' && (
+          {/* 1. Producer (Donor) Views */}
+          {role === 'DONOR' && (
             <>
               {(activeTab === 'donor' || activeTab === 'donor_broadcast') && (
                 <DonorPage session={session} initialSegment="broadcast" />
@@ -241,13 +274,20 @@ export default function App() {
             </>
           )}
 
-          {/* Consumer (Shelter) Views */}
-          {session?.user?.role === 'SHELTER' && (
+          {/* 2. Consumer (Shelter) Views */}
+          {role === 'SHELTER' && (
             <>
               {(activeTab === 'shelter' || activeTab === 'shelter_radar') && (
                 <ShelterPage
                   session={session}
                   initialSegment="radar"
+                  onOpenTokenModal={handleOpenTokenModal}
+                />
+              )}
+              {activeTab === 'shelter_demand' && (
+                <ShelterPage
+                  session={session}
+                  initialSegment="demand"
                   onOpenTokenModal={handleOpenTokenModal}
                 />
               )}
@@ -258,20 +298,55 @@ export default function App() {
                   onOpenTokenModal={handleOpenTokenModal}
                 />
               )}
+              {activeTab === 'shelter_riders' && (
+                <ShelterPage
+                  session={session}
+                  initialSegment="riders"
+                  onOpenTokenModal={handleOpenTokenModal}
+                />
+              )}
             </>
           )}
 
-          {/* Map and Account Views */}
+          {/* 3. Rider Views */}
+          {(role === 'RIDER' || role === 'COURIER') && (
+            <RiderPage session={session} />
+          )}
+
+          {/* 4. Platform Admin Views */}
+          {role === 'ADMIN' && (
+            <>
+              {(activeTab === 'admin' || activeTab === 'admin_overview') && (
+                <AdminPage session={session} initialTab="overview" />
+              )}
+              {activeTab === 'admin_orgs' && (
+                <AdminPage session={session} initialTab="organizations" />
+              )}
+              {activeTab === 'admin_map' && (
+                <AdminPage session={session} initialTab="map" />
+              )}
+              {activeTab === 'admin_audits' && (
+                <AdminPage session={session} initialTab="audits" />
+              )}
+            </>
+          )}
+
+          {/* Common Map & Account Views */}
           {activeTab === 'map' && <MasterMapPage />}
           {activeTab === 'account' && (
             <AccountPage
               session={session}
               onLogout={handleLogout}
-              onSwitchRole={handleSwitchRole}
             />
           )}
         </main>
       </div>
+
+      {/* Floating Evaluator Role Dock for Demonstrations */}
+      <EvaluatorDrawer
+        session={session}
+        onSwitchUser={handleSwitchUser}
+      />
 
       <TokenModal
         token={tokenModalData?.token}

@@ -5,7 +5,6 @@ import {
   MapPin,
   Clock,
   Sparkles,
-  Maximize2,
   RefreshCw,
   Navigation,
   CheckCircle2,
@@ -15,6 +14,10 @@ import {
   Trash2,
   Utensils,
   XCircle,
+  Bike,
+  Users,
+  UserPlus,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   fetchNearbyListings,
@@ -25,11 +28,15 @@ import {
   fetchRecipientRequests,
   createRecipientRequest,
   cancelRecipientRequest,
+  fetchShelterRiders,
+  registerShelterRider,
+  cancelRiderAssignment,
 } from '../services/api';
 import { getSocket } from '../services/socket';
 import ShelterRadarMap from '../components/ShelterRadarMap';
 import ClaimQuantityModal from '../components/ClaimQuantityModal';
 import CancelClaimModal from '../components/CancelClaimModal';
+import AssignRiderModal from '../components/AssignRiderModal';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -80,6 +87,18 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const [postingReq, setPostingReq] = useState(false);
   const [reqMsg, setReqMsg] = useState(null);
 
+  // Fleet Riders State
+  const [shelterRiders, setShelterRiders] = useState([]);
+  const [assigningDelivery, setAssigningDelivery] = useState(null);
+  const [newRiderName, setNewRiderName] = useState('');
+  const [newRiderEmail, setNewRiderEmail] = useState('');
+  const [newRiderPhone, setNewRiderPhone] = useState('');
+  const [newRiderPassword, setNewRiderPassword] = useState('password123');
+  const [registeringRider, setRegisteringRider] = useState(false);
+  const [riderError, setRiderError] = useState(null);
+  const [riderSuccess, setRiderSuccess] = useState(null);
+  const [cancellingAssignId, setCancellingAssignId] = useState(null);
+
   const DEMAND_CATEGORIES = [
     { id: 'COOKED_MEAL', label: 'Cooked Prepared Meals', desc: 'Hot trays, rice, curries, meals' },
     { id: 'PACKAGED', label: 'Packaged / Canned Food', desc: 'Sealed snacks, dry rations, tins' },
@@ -128,10 +147,11 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const loadData = async (lat = radarLatRef.current, lng = radarLngRef.current, radius = radiusKmRef.current) => {
     try {
       setLoading(true);
-      const [nearbyData, allData, reqData] = await Promise.all([
+      const [nearbyData, allData, reqData, ridersData] = await Promise.all([
         fetchNearbyListings(lat, lng, radius),
         fetchAllListings(session?.token),
         fetchRecipientRequests(activeShelterId).catch(() => ({ requests: [] })),
+        fetchShelterRiders().catch(() => ({ riders: [] })),
       ]);
 
       setAvailableListings(nearbyData.listings || []);
@@ -146,10 +166,50 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
       );
       setClaimedDeliveries(myClaimed);
       setMyRequests(reqData.requests || []);
+      setShelterRiders(ridersData.riders || []);
     } catch (err) {
       console.error('[ShelterPage Error]', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRegisterRider = async (e) => {
+    e.preventDefault();
+    if (!newRiderName || !newRiderEmail) return;
+    setRegisteringRider(true);
+    setRiderError(null);
+    setRiderSuccess(null);
+    try {
+      await registerShelterRider({
+        full_name: newRiderName,
+        email: newRiderEmail,
+        phone: newRiderPhone,
+        password: newRiderPassword || 'password123',
+      });
+      setRiderSuccess(`Rider ${newRiderName} registered to your fleet!`);
+      setNewRiderName('');
+      setNewRiderEmail('');
+      setNewRiderPhone('');
+      const ridersRes = await fetchShelterRiders();
+      setShelterRiders(ridersRes.riders || []);
+    } catch (err) {
+      setRiderError(err.message || 'Failed to register rider');
+    } finally {
+      setRegisteringRider(false);
+    }
+  };
+
+  const handleCancelAssignment = async (assignmentId) => {
+    if (!window.confirm('Are you sure you want to cancel this rider assignment? The food will remain reserved for your shelter.')) return;
+    setCancellingAssignId(assignmentId);
+    try {
+      await cancelRiderAssignment(assignmentId, 'Shelter reassigned rider');
+      await loadData();
+    } catch (err) {
+      alert(err.message || 'Failed to cancel assignment');
+    } finally {
+      setCancellingAssignId(null);
     }
   };
 
@@ -316,10 +376,19 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
             </TabsTrigger>
             <TabsTrigger value="deliveries">
               <Truck size={14} />
-              <span>Claimed Deliveries & OTP</span>
+              <span>Claimed Deliveries</span>
               {claimedDeliveries.length > 0 && (
                 <Badge variant="success" style={{ marginLeft: '0.25rem', fontSize: '0.65rem' }}>
                   {claimedDeliveries.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="riders">
+              <Bike size={14} />
+              <span>Rider Fleet</span>
+              {shelterRiders.length > 0 && (
+                <Badge variant="outline" style={{ marginLeft: '0.25rem', fontSize: '0.65rem' }}>
+                  {shelterRiders.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -958,39 +1027,147 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                       </Badge>
                     </div>
 
-                    {/* Apple Wallet / Shadcn Digital OTP Security Ticket */}
-                    <div className="otp-pass-card" style={{ margin: '0.75rem 0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            color: 'var(--muted-foreground)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em'
-                          }}>
-                            Courier Physical Handover Verification Code
+                    {/* Rider Fleet Assignment Box */}
+                    {delivery.assignment_id ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
+                          padding: '0.75rem 1rem',
+                          backgroundColor: 'rgba(56, 189, 248, 0.06)',
+                          border: '1px solid rgba(56, 189, 248, 0.2)',
+                          borderRadius: '8px',
+                          margin: '0.75rem 0',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#38bdf8',
+                            }}
+                          >
+                            <Bike size={16} />
                           </div>
-                          <div className="otp-digit-display">
-                            {delivery.verification_code || '------'}
+                          <div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f3f4f6' }}>
+                              Assigned Rider: {delivery.rider_name || 'Rider Assigned'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                              {delivery.rider_phone ? `Phone: ${delivery.rider_phone} • ` : ''}
+                              Status: <span style={{ color: '#38bdf8', fontWeight: 600 }}>{delivery.assignment_status || 'ASSIGNED'}</span>
+                            </div>
                           </div>
                         </div>
 
-                        {delivery.verification_code && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onOpenTokenModal(delivery.verification_code, delivery.id)}
-                          >
-                            <Maximize2 size={13} />
-                            <span>Enlarge Pass</span>
-                          </Button>
+                        {delivery.status !== 'DELIVERED' && delivery.status !== 'IN_TRANSIT' && (
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAssigningDelivery(delivery)}
+                              style={{ fontSize: '0.75rem' }}
+                            >
+                              Change Rider
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={cancellingAssignId === delivery.assignment_id}
+                              onClick={() => handleCancelAssignment(delivery.assignment_id)}
+                              style={{ fontSize: '0.75rem', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                            >
+                              Cancel Rider
+                            </Button>
+                          </div>
                         )}
                       </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
+                          padding: '0.75rem 1rem',
+                          backgroundColor: 'rgba(234, 179, 8, 0.08)',
+                          border: '1px solid rgba(234, 179, 8, 0.25)',
+                          borderRadius: '8px',
+                          margin: '0.75rem 0',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(234, 179, 8, 0.15)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#eab308',
+                            }}
+                          >
+                            <Bike size={16} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f3f4f6' }}>
+                              Rider Not Dispatched Yet
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#d1d5db' }}>
+                              Dispatch an authorized shelter rider to retrieve this parcel.
+                            </div>
+                          </div>
+                        </div>
 
-                      <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>
-                        Show this 6-digit cryptographic HMAC code to the kitchen staff at pickup to authorize batch release.
+                        <Button
+                          size="sm"
+                          onClick={() => setAssigningDelivery(delivery)}
+                          style={{
+                            backgroundColor: '#38bdf8',
+                            color: '#090a0f',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                          }}
+                        >
+                          <Bike size={13} style={{ marginRight: '0.35rem' }} />
+                          <span>Assign Fleet Rider</span>
+                        </Button>
                       </div>
+                    )}
+
+                    {/* Digital Custody Security Notice */}
+                    <div
+                      style={{
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '8px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.775rem',
+                        color: '#9ca3af',
+                        marginBottom: '0.75rem',
+                      }}
+                    >
+                      <ShieldCheck size={15} color="#38bdf8" />
+                      <span>
+                        {delivery.assignment_id
+                          ? "Authorized single-use OTP pass is active on the assigned rider's mobile terminal. Donor verifies code at physical release."
+                          : 'Pickup OTP pass will be generated exclusively for the assigned rider upon dispatch.'}
+                      </span>
                     </div>
 
                     {/* Status Messages & Actions */}
@@ -1075,6 +1252,235 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
             </div>
           )}
         </TabsContent>
+
+        {/* ========================================================================= */}
+        {/* TAB 4: RIDER FLEET DISPATCH & MANAGEMENT                                  */}
+        {/* ========================================================================= */}
+        <TabsContent value="riders">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+            {/* Register New Rider Form Card */}
+            <Card>
+              <CardHeader>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <UserPlus size={18} color="#38bdf8" />
+                  <CardTitle style={{ fontSize: '1.05rem' }}>Register Fleet Rider</CardTitle>
+                </div>
+                <CardDescription>
+                  Invite or register an authorized courier to collect surplus batches for your shelter.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {riderError && (
+                  <div style={{ padding: '0.65rem 0.85rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', color: '#f87171', fontSize: '0.8rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <AlertCircle size={14} />
+                    <span>{riderError}</span>
+                  </div>
+                )}
+                {riderSuccess && (
+                  <div style={{ padding: '0.65rem 0.85rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', color: '#34d399', fontSize: '0.8rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <CheckCircle2 size={14} />
+                    <span>{riderSuccess}</span>
+                  </div>
+                )}
+                <form onSubmit={handleRegisterRider} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.35rem' }}>
+                      Rider Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Vikram Singh"
+                      value={newRiderName}
+                      onChange={(e) => setNewRiderName(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.8rem',
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '6px',
+                        color: 'var(--foreground)',
+                        fontSize: '0.85rem',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.35rem' }}>
+                      Email Address (Login) *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. vikram.rider@hopehaven.org"
+                      value={newRiderEmail}
+                      onChange={(e) => setNewRiderEmail(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.8rem',
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '6px',
+                        color: 'var(--foreground)',
+                        fontSize: '0.85rem',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.35rem' }}>
+                      Mobile Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="e.g. +91 98765 43210"
+                      value={newRiderPhone}
+                      onChange={(e) => setNewRiderPhone(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.8rem',
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '6px',
+                        color: 'var(--foreground)',
+                        fontSize: '0.85rem',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.35rem' }}>
+                      Temporary Password
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="password123"
+                      value={newRiderPassword}
+                      onChange={(e) => setNewRiderPassword(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.8rem',
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '6px',
+                        color: 'var(--foreground)',
+                        fontSize: '0.85rem',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={registeringRider || !newRiderName || !newRiderEmail}
+                    style={{
+                      marginTop: '0.5rem',
+                      backgroundColor: '#38bdf8',
+                      color: '#090a0f',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <UserPlus size={14} style={{ marginRight: '0.4rem' }} />
+                    <span>{registeringRider ? 'Registering...' : 'Register Rider to Fleet'}</span>
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Registered Fleet List Card */}
+            <Card>
+              <CardHeader>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Users size={18} color="#38bdf8" />
+                    <CardTitle style={{ fontSize: '1.05rem' }}>Shelter Rider Fleet</CardTitle>
+                  </div>
+                  <Badge variant="outline">{shelterRiders.length} Registered</Badge>
+                </div>
+                <CardDescription>
+                  Riders authorized to receive dispatch missions and digital pickup OTP passes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {shelterRiders.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--muted-foreground)' }}>
+                    <Bike size={32} style={{ margin: '0 auto 0.75rem auto', opacity: 0.4 }} />
+                    <p style={{ margin: 0, fontSize: '0.875rem' }}>No riders registered yet.</p>
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.775rem', opacity: 0.7 }}>
+                      Use the form on the left to add couriers to your fleet.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    {shelterRiders.map((r) => {
+                      const activeCount = parseInt(r.active_tasks_count || 0, 10);
+                      return (
+                        <div
+                          key={r.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.75rem 1rem',
+                            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            <div
+                              style={{
+                                width: '34px',
+                                height: '34px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                border: '1px solid rgba(56, 189, 248, 0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#38bdf8',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                              }}
+                            >
+                              {r.full_name.charAt(0)}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                                {r.full_name}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                                {r.email} {r.phone ? `• ${r.phone}` : ''}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {activeCount === 0 ? (
+                              <Badge variant="outline" style={{ color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.3)', fontSize: '0.7rem' }}>
+                                Available
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" style={{ color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.3)', fontSize: '0.7rem' }}>
+                                {activeCount} active task{activeCount > 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                            <Badge variant="secondary" style={{ fontSize: '0.7rem' }}>
+                              {r.role}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* Claim Quantity Selection Modal (Full or Partial Split) */}
@@ -1101,6 +1507,14 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
         onConfirmCancel={handleConfirmCancel}
         cancelling={cancellingLoading}
         error={cancelError}
+      />
+
+      {/* Rider Assignment Modal */}
+      <AssignRiderModal
+        delivery={assigningDelivery}
+        isOpen={Boolean(assigningDelivery)}
+        onClose={() => setAssigningDelivery(null)}
+        onSuccess={() => loadData()}
       />
     </div>
   );

@@ -9,7 +9,7 @@ import {
   reopenDonationInGeo,
   removeDonationFromGeo,
 } from '../services/redisEngine.js';
-import { generateHandoverToken } from '../services/tokenService.js';
+import { generateHandoverToken, hashTokenDigest } from '../services/tokenService.js';
 import { isValidCoordinate } from '../services/geoService.js';
 import { matchListingToRecipients } from '../services/matchingService.js';
 
@@ -139,6 +139,10 @@ export async function createListing(req, res, next) {
       console.warn('[Matching Init Warning]', matchErr.message);
     }
 
+    // Dynamic Priority Window: scale reservation with remaining feasible time
+    const dynamicTier1Secs = Math.min(300, Math.max(60, Math.floor(ttlSeconds * 0.2)));
+    const dynamicTier2Secs = Math.min(900, Math.max(120, Math.floor(ttlSeconds * 0.4)));
+
     // 2. Dual-Write to Redis In-Memory Engine with Tier Metadata
     await addDonationToGeo(newListing.id, pickup_lng, pickup_lat, ttlSeconds, {
       food_type,
@@ -153,6 +157,8 @@ export async function createListing(req, res, next) {
       safety_declared: isSafetyDeclared,
       priority_tier_1_recipient: tier1Recipient,
       priority_tier_2_recipients: tier2Recipients,
+      tier_1_window_seconds: dynamicTier1Secs,
+      tier_2_window_seconds: dynamicTier2Secs,
     });
 
     // 3. FIX #1: Dual-Index Search - Find candidate shelters to notify
@@ -219,12 +225,14 @@ export async function getNearbyListings(req, res, next) {
         let currentTier = 3;
         let tierSecondsRemaining = 0;
         if (ramState.priority_tier_1_recipient && ramState.priority_tier_1_recipient !== '') {
-          if (elapsedSeconds < 300) {
+          const tier1Secs = parseInt(ramState.tier_1_window_seconds || '300', 10);
+          const tier2Secs = parseInt(ramState.tier_2_window_seconds || '900', 10);
+          if (elapsedSeconds < tier1Secs) {
             currentTier = 1;
-            tierSecondsRemaining = 300 - elapsedSeconds;
-          } else if (elapsedSeconds < 900) {
+            tierSecondsRemaining = tier1Secs - elapsedSeconds;
+          } else if (elapsedSeconds < tier2Secs) {
             currentTier = 2;
-            tierSecondsRemaining = 900 - elapsedSeconds;
+            tierSecondsRemaining = tier2Secs - elapsedSeconds;
           }
         }
 
@@ -292,8 +300,9 @@ export async function claimListing(req, res, next) {
     const { type: claimType, claimedKg, remainingKg } = claimResult;
     const newStatus = claimType === 'PARTIAL' ? 'PARTIALLY_CLAIMED' : 'CLAIMED';
 
-    // Winner path: Update PostgreSQL
+    // Winner path: Update PostgreSQL and insert durable allocation
     let updateRes;
+    let allocationId = null;
     try {
       updateRes = await query(
         `UPDATE food_listings 
@@ -302,6 +311,15 @@ export async function claimListing(req, res, next) {
          RETURNING *`,
         [newStatus, shelterId, remainingKg, id]
       );
+
+      // Create durable allocation record for multi-portion tracking
+      const allocRes = await query(
+        `INSERT INTO allocations (listing_id, shelter_id, allocated_kg, status)
+         VALUES ($1, $2, $3, 'RESERVED')
+         RETURNING id`,
+        [id, shelterId, claimedKg]
+      );
+      allocationId = allocRes.rows[0]?.id || null;
     } catch (dbErr) {
       // Graceful fallback for test runners or non-UUID shelter IDs
       updateRes = await query(
@@ -317,19 +335,20 @@ export async function claimListing(req, res, next) {
 
     // Generate cryptographic handover verification token
     const tokenInfo = generateHandoverToken(id, shelterId);
+    const digest = hashTokenDigest(tokenInfo.verificationCode);
 
-    // Initialize handover audit entry with claimed quantity
+    // Initialize handover audit entry with claimed quantity and allocation reference
     try {
       await query(
-        `INSERT INTO handover_audits (listing_id, ngo_id, verification_token, quantity_claimed_kg)
-         VALUES ($1, $2, $3, $4)`,
-        [id, shelterId, tokenInfo.verificationCode, claimedKg]
+        `INSERT INTO handover_audits (listing_id, allocation_id, ngo_id, verification_token, token_digest, quantity_claimed_kg)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [id, allocationId, shelterId, tokenInfo.verificationCode, digest, claimedKg]
       );
     } catch (auditErr) {
       await query(
-        `INSERT INTO handover_audits (listing_id, verification_token, quantity_claimed_kg)
-         VALUES ($1, $2, $3)`,
-        [id, tokenInfo.verificationCode, claimedKg]
+        `INSERT INTO handover_audits (listing_id, verification_token, token_digest, quantity_claimed_kg)
+         VALUES ($1, $2, $3, $4)`,
+        [id, tokenInfo.verificationCode, digest, claimedKg]
       );
     }
 
@@ -365,10 +384,11 @@ export async function claimListing(req, res, next) {
       claim_type: claimType,
       claimed_kg: claimedKg,
       quantity_remaining: remainingKg,
+      allocation_id: allocationId,
       listing: updatedListing,
       handover: {
         verification_code: tokenInfo.verificationCode,
-        instructions: 'Present this 6-digit code to the donor at pickup.',
+        instructions: 'Present this 6-digit code to the donor at pickup or assign a rider from your dashboard.',
       },
     });
   } catch (err) {
@@ -539,7 +559,10 @@ export async function getAllListings(req, res, next) {
               CASE 
                 WHEN $1::uuid IS NOT NULL AND f.claimed_by = $1::uuid THEN h.verification_token
                 ELSE NULL 
-              END as verification_code
+              END as verification_code,
+              alloc.allocation_id, alloc.allocated_kg, alloc.allocation_status,
+              alloc.assignment_id, alloc.rider_id, alloc.assignment_status,
+              alloc.rider_name, alloc.rider_phone
        FROM food_listings f
        LEFT JOIN users u ON u.id = f.donor_id
        LEFT JOIN organizations o ON o.id = f.claimed_by
@@ -550,6 +573,17 @@ export async function getAllListings(req, res, next) {
          ORDER BY created_at DESC 
          LIMIT 1
        ) h ON true
+       LEFT JOIN LATERAL (
+         SELECT a.id as allocation_id, a.allocated_kg, a.status as allocation_status,
+                d.id as assignment_id, d.rider_id, d.status as assignment_status,
+                ru.full_name as rider_name, ru.phone as rider_phone
+         FROM allocations a
+         LEFT JOIN delivery_assignments d ON d.allocation_id = a.id AND d.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'COMPLETED')
+         LEFT JOIN users ru ON ru.id = d.rider_id
+         WHERE a.listing_id = f.id AND (a.shelter_id = $1::uuid OR $1::uuid IS NULL)
+         ORDER BY a.created_at DESC
+         LIMIT 1
+       ) alloc ON true
        ORDER BY f.created_at DESC LIMIT 50`,
       [requestingOrgId]
     );

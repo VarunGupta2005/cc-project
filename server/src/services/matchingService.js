@@ -213,15 +213,20 @@ export function scoreFeasibleCandidate(listing, recipient, transit, options = {}
   // Measures safe cushion. 120+ minutes of slack is ideal (1.0).
   const slackScore = Math.max(0, Math.min(1, transit.consumption_slack_minutes / 180.0));
 
-  // 3. Capacity Fit Score (0 to 1):
-  // Ideal fit is when batch fills a good portion of capacity without overflowing.
-  const fitRatio = availCap > 0 ? batchQty / availCap : 0;
+  // 3. Useful Quantity & Capacity Fit Score (0 to 1):
+  // Formula: Q_useful = min(Q_offered, Q_needed, Q_capacity)
+  const neededQty = parseFloat(recipient.needed_kg || recipient.quantity_needed_kg || 0);
+  const qUseful = neededQty > 0
+    ? Math.min(batchQty, neededQty, availCap)
+    : Math.min(batchQty, availCap);
+
+  const fitRatio = availCap > 0 ? qUseful / availCap : 0;
   const fitScore = Math.max(0, Math.min(1, fitRatio > 1 ? 0 : 0.5 + 0.5 * fitRatio));
 
   // 4. Need / Priority Score (0 to 1):
-  // Higher score if recipient has recorded active demand
-  const hasActiveDemand = recipient.has_active_request || recipient.active_request_id ? 1.0 : 0.6;
-  const needScore = hasActiveDemand;
+  // Explicitly distinguish verified demand-backed matches (active compatible request) from general capacity compatibility
+  const isDemandBacked = Boolean(recipient.has_active_request || recipient.active_request_id || neededQty > 0);
+  const needScore = isDemandBacked ? 1.0 : 0.6;
 
   // Composite Weighted Score
   const totalScore = parseFloat(
@@ -233,15 +238,20 @@ export function scoreFeasibleCandidate(listing, recipient, transit, options = {}
     ).toFixed(4)
   );
 
-  // Construct transparent explanation
+  // Construct transparent explanation distinguishing demand vs capacity match
+  const matchCategory = isDemandBacked ? 'DEMAND_BACKED' : 'CAPACITY_COMPATIBLE';
   const explanation = {
     distance_km: transit.distance_km,
     round_trip_eta_minutes: transit.round_trip_eta_minutes,
     deadline_slack_minutes: transit.consumption_slack_minutes,
     available_capacity_kg: availCap,
     batch_quantity_kg: batchQty,
+    useful_quantity_kg: qUseful,
+    match_type: matchCategory,
     dietary_compatibility: 'COMPATIBLE',
-    summary: `Feasible self-pickup (${transit.distance_km}km, ${transit.round_trip_eta_minutes}m round-trip). Offers ${transit.consumption_slack_minutes}m buffer before consumption cutoff with ${availCap}kg available storage.`,
+    summary: isDemandBacked
+      ? `Verified Demand-Backed Match (${transit.distance_km}km, ${transit.round_trip_eta_minutes}m round-trip). Fulfills ${qUseful}kg of active shelter requirement with ${transit.consumption_slack_minutes}m safety buffer.`
+      : `Capacity-Compatible Candidate (${transit.distance_km}km, ${transit.round_trip_eta_minutes}m round-trip). Offers ${availCap}kg storage with ${transit.consumption_slack_minutes}m safety buffer.`,
   };
 
   return {

@@ -214,3 +214,161 @@ export async function cancelRecipientRequest(requestId, customToken) {
   if (!res.ok) throw new Error(resData.error || 'Failed to cancel requirement');
   return resData;
 }
+
+// =============================================================
+// PHASE 7: RIDER DISPATCH & ORGANIZATION MANAGEMENT APIS
+// =============================================================
+
+export async function fetchShelterRiders() {
+  const token = localStorage.getItem('rg_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/riders/shelter-riders`, { headers });
+  if (!res.ok) throw new Error('Failed to fetch organization riders');
+  return await res.json();
+}
+
+export async function registerShelterRider(riderData) {
+  const token = localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/riders/register`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(riderData),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to register rider');
+  return data;
+}
+
+export async function assignRiderToAllocation(allocationId, riderId, notes) {
+  const token = localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/riders/assign`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ allocation_id: allocationId, rider_id: riderId, notes }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to assign rider');
+  return data;
+}
+
+export async function cancelRiderAssignment(assignmentId, reason) {
+  const token = localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/riders/assignments/${assignmentId}/cancel`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ reason }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to cancel assignment');
+  return data;
+}
+
+export async function fetchRiderTasks() {
+  const token = localStorage.getItem('rg_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/riders/my-tasks`, { headers });
+  if (!res.ok) throw new Error('Failed to fetch assigned rider tasks');
+  return await res.json();
+}
+
+export async function acceptRiderTask(assignmentId) {
+  const token = localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/riders/tasks/${assignmentId}/accept`, {
+    method: 'POST',
+    headers,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to accept task');
+  return data;
+}
+
+export async function updateOrganizationProfile(orgId, updateData) {
+  const token = localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/auth/organizations/${orgId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(updateData),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update organization profile');
+  return data;
+}
+
+// =============================================================
+// PLATFORM ADMIN PORTAL APIS
+// =============================================================
+
+export async function fetchAdminOverview() {
+  const token = localStorage.getItem('rg_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/admin/overview`, { headers });
+  if (!res.ok) throw new Error('Failed to load admin overview metrics');
+  return await res.json();
+}
+
+export async function fetchAdminOrganizations(status) {
+  const token = localStorage.getItem('rg_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const url = status ? `${API_BASE}/api/admin/organizations?status=${status}` : `${API_BASE}/api/admin/organizations`;
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error('Failed to load organizations queue');
+  return await res.json();
+}
+
+export async function verifyAdminOrganization(orgId, status) {
+  const token = localStorage.getItem('rg_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/admin/organizations/${orgId}/verify`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ status }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update organization status');
+  return data;
+}
+
+export async function fetchAdminDispatchMap() {
+  const token = localStorage.getItem('rg_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/admin/dispatch-map`, { headers });
+  if (!res.ok) throw new Error('Failed to fetch admin dispatch map data');
+  return await res.json();
+}
+
+export async function fetchAdminAudits() {
+  const token = localStorage.getItem('rg_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/admin/audits`, { headers });
+  if (!res.ok) throw new Error('Failed to fetch admin compliance ledger');
+  return await res.json();
+}
