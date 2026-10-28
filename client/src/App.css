@@ -98,9 +98,9 @@
 
   --warning: #f59e0b;           /* Amber */
   --warning-foreground: #ffffff;
-  --warning-bg: rgba(245, 158, 11, 0.15);
-  --warning-border: rgba(245, 158, 11, 0.35);
-  --warning-text: #facc15;
+  --warning-bg: rgba(245, 158, 11, 0.08);
+  --warning-border: rgba(245, 158, 11, 0.2);
+  --warning-text: #fbbf24;
 
   --border: #262626;            /* Razor-sharp 1px dark border */
   --border-subtle: #1a1a1a;
@@ -377,9 +377,9 @@ body {
 }
 
 .dark .ui-badge--warning {
-  background-color: rgba(234, 179, 8, 0.15);
-  color: #facc15;
-  border-color: rgba(234, 179, 8, 0.35);
+  background-color: rgba(245, 158, 11, 0.08);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.22);
 }
 
 .dark .ui-badge--destructive {

@@ -18,6 +18,7 @@ import {
   Users,
   UserPlus,
   ShieldCheck,
+  Lock,
 } from 'lucide-react';
 import {
   fetchNearbyListings,
@@ -56,8 +57,13 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
   return Math.round(R * c);
 }
 
-export default function ShelterPage({ session, onOpenTokenModal, initialSegment = 'radar' }) {
+export default function ShelterPage({ session, onOpenTokenModal, initialSegment = 'radar', onSegmentChange }) {
   const [activeSegment, setActiveSegment] = useState(initialSegment);
+
+  const handleSegmentChange = (seg) => {
+    setActiveSegment(seg);
+    if (onSegmentChange) onSegmentChange(seg);
+  };
   const [availableListings, setAvailableListings] = useState([]);
   const [allAvailableListings, setAllAvailableListings] = useState([]);
   const [claimedDeliveries, setClaimedDeliveries] = useState([]);
@@ -144,9 +150,14 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     }
   }, [initialSegment]);
 
-  const loadData = async (lat = radarLatRef.current, lng = radarLngRef.current, radius = radiusKmRef.current) => {
+  const loadData = async (
+    lat = radarLatRef.current,
+    lng = radarLngRef.current,
+    radius = radiusKmRef.current,
+    isInitial = false
+  ) => {
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
       const [nearbyData, allData, reqData, ridersData] = await Promise.all([
         fetchNearbyListings(lat, lng, radius),
         fetchAllListings(session?.token),
@@ -157,12 +168,15 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
       setAvailableListings(nearbyData.listings || []);
 
       const activeAll = (allData.listings || []).filter(
-        (l) => l.status === 'AVAILABLE'
+        (l) => l.status === 'AVAILABLE' || l.status === 'PARTIALLY_CLAIMED'
       );
       setAllAvailableListings(activeAll);
 
       const myClaimed = (allData.listings || []).filter(
-        (l) => l.claimed_by === activeShelterId && l.status !== 'EXPIRED'
+        (l) =>
+          (l.claimed_by === activeShelterId || l.allocation_id) &&
+          l.status !== 'EXPIRED' &&
+          l.allocation_status !== 'CANCELLED'
       );
       setClaimedDeliveries(myClaimed);
       setMyRequests(reqData.requests || []);
@@ -170,7 +184,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     } catch (err) {
       console.error('[ShelterPage Error]', err);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
@@ -245,16 +259,16 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   };
 
   useEffect(() => {
-    loadData(radarLat, radarLng, radiusKm);
+    loadData(radarLat, radarLng, radiusKm, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [radarLat, radarLng, radiusKm]);
 
-  // Real-time WebSockets & Background Sync
+  // Real-time WebSockets & Background Sync (silent update, no feed unmounting)
   useEffect(() => {
     const socket = getSocket();
 
     const refreshData = () => {
-      loadData(radarLatRef.current, radarLngRef.current, radiusKmRef.current);
+      loadData(radarLatRef.current, radarLngRef.current, radiusKmRef.current, false);
     };
 
     socket.on('food:new_alert', refreshData);
@@ -264,7 +278,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     socket.on('food:expired', refreshData);
     socket.on('delivery:update', refreshData);
 
-    const syncTimer = setInterval(refreshData, 4000);
+    const syncTimer = setInterval(refreshData, 15000);
 
     return () => {
       clearInterval(syncTimer);
@@ -330,10 +344,10 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     }
   };
 
-  const handleConfirmDelivery = async (listingId) => {
-    setConfirmingId(listingId);
+  const handleConfirmDelivery = async (listingId, allocationId) => {
+    setConfirmingId(allocationId || listingId);
     try {
-      await confirmDelivery(listingId, 'Verified handover at shelter', session?.token);
+      await confirmDelivery(listingId, 'Verified handover at shelter', session?.token, allocationId);
       await loadData();
     } catch (err) {
       alert('Confirmation failed: ' + err.message);
@@ -350,10 +364,18 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     return `${m}m ${s}s left`;
   };
 
+  const isPastDelivery = (d) =>
+    d.allocation_status === 'DELIVERED' ||
+    d.assignment_status === 'COMPLETED' ||
+    (!d.allocation_id && d.status === 'DELIVERED');
+
+  const pastDeliveries = claimedDeliveries.filter(isPastDelivery);
+  const activeDeliveries = claimedDeliveries.filter((d) => !isPastDelivery(d));
+
   return (
     <div className="page-container" style={{ maxWidth: '960px', margin: '0 auto' }}>
       {/* Segmented Control Header */}
-      <Tabs value={activeSegment} onValueChange={setActiveSegment}>
+      <Tabs value={activeSegment} onValueChange={handleSegmentChange}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <TabsList>
             <TabsTrigger value="radar">
@@ -376,10 +398,19 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
             </TabsTrigger>
             <TabsTrigger value="deliveries">
               <Truck size={14} />
-              <span>Claimed Deliveries</span>
-              {claimedDeliveries.length > 0 && (
+              <span>Active Deliveries</span>
+              {activeDeliveries.length > 0 && (
                 <Badge variant="success" style={{ marginLeft: '0.25rem', fontSize: '0.65rem' }}>
-                  {claimedDeliveries.length}
+                  {activeDeliveries.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="history">
+              <CheckCircle2 size={14} />
+              <span>Delivery History</span>
+              {pastDeliveries.length > 0 && (
+                <Badge variant="secondary" style={{ marginLeft: '0.25rem', fontSize: '0.65rem' }}>
+                  {pastDeliveries.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -393,11 +424,6 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
               )}
             </TabsTrigger>
           </TabsList>
-
-          <Badge variant="secondary" style={{ gap: '0.35rem' }}>
-            <Zap size={12} color="var(--primary)" />
-            <span>Redis GEO Proximity &bull; &lt;5ms</span>
-          </Badge>
         </div>
 
         {/* ========================================================================= */}
@@ -456,7 +482,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => loadData()}
+                    onClick={() => loadData(radarLat, radarLng, radiusKm, false)}
                   >
                     <RefreshCw size={13} />
                     <span>Sync</span>
@@ -500,7 +526,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--foreground)', fontWeight: 600, fontSize: '0.875rem' }}>
                 <Sparkles size={16} />
-                <span>{allAvailableListings.length} Surplus Food Batch(es) Active in Cluster</span>
+                <span>{allAvailableListings.length} Surplus Food Batch(es) Active on Platform</span>
               </div>
               <p style={{ fontSize: '0.8125rem', color: 'var(--muted-foreground)', margin: '0.35rem 0 0.75rem 0' }}>
                 Batch <b>"{allAvailableListings[0].food_type}"</b> was posted at <b>{allAvailableListings[0].pickup_address}</b> (~{getDistanceKm(radarLat, radarLng, parseFloat(allAvailableListings[0].pickup_lat), parseFloat(allAvailableListings[0].pickup_lng))} km away from your pin).
@@ -536,7 +562,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
             <Card style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--muted-foreground)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                 <RefreshCw size={16} className="spin" />
-                <span>Scanning Redis geospatial index for fresh surplus batches...</span>
+                <span>Scanning nearby areas for fresh surplus batches...</span>
               </div>
             </Card>
           ) : availableListings.length === 0 ? (
@@ -662,6 +688,53 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                           <span style={{ color: 'var(--muted-foreground)' }}>
                             Round-trip ETA: <b>~{roundTripMins}m</b> &bull; Slack Buffer: <b>{slackMins > 0 ? `+${slackMins}m` : `${slackMins}m`}</b>
                           </span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Active reservation banner if this shelter has claimed a portion */}
+                    {(() => {
+                      const myClaim = claimedDeliveries.find(
+                        (d) => (d.id === item.id || d.listing_id === item.id) && (d.allocation_id || d.claimed_by === activeShelterId)
+                      );
+                      if (!myClaim) return null;
+                      const portionKg = myClaim.allocated_kg || myClaim.quantity_claimed_kg || 'Portion';
+                      return (
+                        <div style={{
+                          marginTop: '0.5rem',
+                          padding: '0.5rem 0.75rem',
+                          backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                          border: '1px solid rgba(56, 189, 248, 0.25)',
+                          borderRadius: 'var(--radius)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '0.78rem',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8', fontWeight: 600 }}>
+                            <CheckCircle2 size={14} />
+                            <span>You reserved <b>{portionKg} kg</b> &bull; {myClaim.rider_name ? `Rider: ${myClaim.rider_name}` : 'Awaiting Rider Dispatch'}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                            <Button
+                              size="sm"
+                              onClick={() => setAssigningDelivery(myClaim)}
+                              style={{ height: '27px', fontSize: '0.74rem', gap: '0.3rem' }}
+                            >
+                              <Bike size={13} />
+                              <span>{myClaim.assignment_id ? 'Change Rider' : 'Assign Fleet Rider'}</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setActiveSegment('deliveries')}
+                              style={{ height: '27px', fontSize: '0.74rem' }}
+                            >
+                              <span>View in Deliveries</span>
+                            </Button>
+                          </div>
                         </div>
                       );
                     })()}
@@ -908,7 +981,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
             {myRequests.length === 0 ? (
               <Card style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
                 <CardDescription>
-                  No active requirements posted. Post a requirement above so commercial donors and the matching algorithm prioritize your shelter.
+                  No active requirements posted. Post a requirement above so commercial donors can prioritize your shelter needs.
                 </CardDescription>
               </Card>
             ) : (
@@ -949,312 +1022,403 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
         {/* TAB 3: CLAIMED DELIVERIES & HANDOVER OTP                                  */}
         {/* ========================================================================= */}
         <TabsContent value="deliveries">
-          {claimedDeliveries.length === 0 ? (
-            <Card style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: 'var(--radius)',
-                backgroundColor: 'var(--secondary)',
-                color: 'var(--muted-foreground)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '1rem',
-              }}>
-                <Truck size={24} />
-              </div>
-              <CardTitle style={{ marginBottom: '0.35rem' }}>No active deliveries claimed</CardTitle>
-              <CardDescription style={{ maxWidth: '400px', margin: '0 auto 1.5rem auto' }}>
-                Claim an active surplus batch from the Inbound Radar to track your courier arrival and view your digital handover OTP pass.
-              </CardDescription>
-              <Button onClick={() => setActiveSegment('radar')}>
-                <Radio size={14} />
-                <span>Go to Inbound Radar</span>
-              </Button>
-            </Card>
-          ) : (
-            <div>
-              {/* Live Inbound Route Map for Active Claimed Deliveries */}
-              <div style={{ marginBottom: '1.25rem' }}>
-                <ShelterRadarMap
-                  shelterLat={radarLat}
-                  shelterLng={radarLng}
-                  shelterName={session?.org?.name || session?.user?.full_name || 'My Shelter'}
-                  radiusKm={radiusKm}
-                  listings={[]}
-                  claimedListings={claimedDeliveries}
-                  height="320px"
-                />
-              </div>
+          {/* 1. Active Inbound Deliveries */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: 'var(--muted-foreground)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '0.75rem',
+            }}>
+              Active Inbound Deliveries ({activeDeliveries.length})
+            </div>
 
-              <div style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: 'var(--muted-foreground)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '0.75rem',
-              }}>
-                Active Claimed Deliveries ({claimedDeliveries.length})
+            {activeDeliveries.length === 0 ? (
+              <Card style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: 'var(--radius)',
+                  backgroundColor: 'var(--secondary)',
+                  color: 'var(--muted-foreground)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '0.75rem',
+                }}>
+                  <Truck size={20} />
+                </div>
+                <CardTitle style={{ fontSize: '0.95rem', marginBottom: '0.25rem' }}>No active deliveries claimed</CardTitle>
+                <CardDescription style={{ maxWidth: '380px', margin: '0 auto 1rem auto' }}>
+                  Claim an active surplus batch from the Inbound Radar to dispatch a rider and track pickup.
+                </CardDescription>
+                <Button size="sm" onClick={() => setActiveSegment('radar')}>
+                  <Radio size={13} />
+                  <span>Go to Inbound Radar</span>
+                </Button>
+              </Card>
+            ) : (
+              <div>
+                {/* Live Inbound Route Map for Active Claimed Deliveries */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <ShelterRadarMap
+                    shelterLat={radarLat}
+                    shelterLng={radarLng}
+                    shelterName={session?.org?.name || session?.user?.full_name || 'My Shelter'}
+                    radiusKm={radiusKm}
+                    listings={[]}
+                    claimedListings={activeDeliveries}
+                    height="320px"
+                  />
+                </div>
+
+                {activeDeliveries.map((delivery) => {
+                  const isCustodyLocked =
+                    delivery.assignment_status === 'PICKED_UP' ||
+                    delivery.assignment_status === 'COMPLETED' ||
+                    delivery.allocation_status === 'IN_TRANSIT' ||
+                    delivery.allocation_status === 'DELIVERED' ||
+                    delivery.status === 'IN_TRANSIT' ||
+                    delivery.status === 'DELIVERED';
+                  const isInTransit = isCustodyLocked && delivery.assignment_status !== 'COMPLETED' && delivery.allocation_status !== 'DELIVERED';
+                  const isAwaitingPickup = !isCustodyLocked;
+                  const portionKg = delivery.allocated_kg || delivery.quantity_claimed_kg || delivery.quantity_kg;
+
+                  return (
+                    <div key={delivery.id} className="batch-card" style={{ padding: '1.25rem' }}>
+                      <div className="batch-card-header">
+                        <div>
+                          <div className="batch-title">{delivery.food_type}</div>
+                          <div className="batch-meta-row" style={{ marginTop: '0.25rem' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                              Portion: {portionKg} kg
+                            </span>
+                            <span>&bull;</span>
+                            <MapPin size={13} />
+                            <span>Pickup: <b>{delivery.pickup_address}</b></span>
+                          </div>
+                        </div>
+
+                        <Badge
+                          variant={isInTransit ? 'info' : 'outline'}
+                          style={
+                            isAwaitingPickup
+                              ? { color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }
+                              : undefined
+                          }
+                        >
+                          {isInTransit && <Truck size={11} />}
+                          {isAwaitingPickup && <Clock size={11} />}
+                          <span>{isInTransit ? 'In Transit' : 'Awaiting Pickup'}</span>
+                        </Badge>
+                      </div>
+
+                      {/* Rider Fleet Assignment Box */}
+                      {delivery.assignment_id ? (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '0.5rem',
+                            padding: '0.75rem 1rem',
+                            backgroundColor: 'rgba(56, 189, 248, 0.06)',
+                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                            borderRadius: '8px',
+                            margin: '0.75rem 0',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            <div
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#38bdf8',
+                              }}
+                            >
+                              <Bike size={16} />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                                Assigned Rider: {delivery.rider_name || 'Rider Assigned'}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                                {delivery.rider_phone ? `Phone: ${delivery.rider_phone} • ` : ''}
+                                Status: <span style={{ color: '#38bdf8', fontWeight: 600 }}>{delivery.assignment_status || 'ASSIGNED'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {!isCustodyLocked ? (
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setAssigningDelivery(delivery)}
+                                style={{ fontSize: '0.75rem' }}
+                              >
+                                Change Rider
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={cancellingAssignId === delivery.assignment_id}
+                                onClick={() => handleCancelAssignment(delivery.assignment_id)}
+                                style={{ fontSize: '0.75rem', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                              >
+                                Cancel Rider
+                              </Button>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.35rem 0.65rem',
+                                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                borderRadius: '6px',
+                                color: '#38bdf8',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              <Lock size={12} />
+                              <span>In Custody &bull; En Route</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '0.5rem',
+                            padding: '0.75rem 1rem',
+                            backgroundColor: 'var(--secondary)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            margin: '0.75rem 0',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            <div
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                backgroundColor: 'var(--card)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'var(--foreground)',
+                                border: '1px solid var(--border)',
+                              }}
+                            >
+                              <Bike size={16} />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                                Rider Not Dispatched Yet
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                                Dispatch an authorized shelter rider to retrieve this parcel.
+                              </div>
+                            </div>
+                          </div>
+
+                          <Button
+                            size="sm"
+                            onClick={() => setAssigningDelivery(delivery)}
+                          >
+                            <Bike size={13} style={{ marginRight: '0.35rem' }} />
+                            <span>Assign Fleet Rider</span>
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Digital Custody Security Notice */}
+                      <div
+                        style={{
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--secondary)',
+                          border: '1px solid var(--border)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.775rem',
+                          color: 'var(--muted-foreground)',
+                          marginBottom: '0.75rem',
+                        }}
+                      >
+                        <ShieldCheck size={15} color="#38bdf8" />
+                        <span>
+                          {delivery.assignment_id
+                            ? "Authorized pickup OTP pass is active on the assigned rider's terminal. Donor kitchen verifies code at collection."
+                            : 'Pickup OTP pass will be generated exclusively for the assigned rider upon dispatch.'}
+                        </span>
+                      </div>
+
+                      {/* Status Messages & Actions */}
+                      {isAwaitingPickup && (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '0.75rem',
+                          marginTop: '0.5rem',
+                          backgroundColor: 'var(--secondary)',
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8125rem', color: 'var(--foreground)' }}>
+                            <Clock size={14} color="var(--muted-foreground)" />
+                            <span>Awaiting courier dispatch / physical pickup verification.</span>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenCancelModal(delivery)}
+                            style={{
+                              color: 'var(--destructive-text)',
+                              borderColor: 'var(--destructive-border)',
+                              backgroundColor: 'var(--card)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                            }}
+                          >
+                            <XCircle size={13} />
+                            <span>Cancel Claim</span>
+                          </Button>
+                        </div>
+                      )}
+
+                      {isInTransit && (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '0.75rem',
+                          paddingTop: '0.75rem',
+                          borderTop: '1px solid var(--border-subtle)'
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.45rem',
+                            fontSize: '0.8125rem',
+                            color: 'var(--foreground)',
+                            fontWeight: 600
+                          }}>
+                            <Truck size={15} color="#38bdf8" />
+                            <span>Courier verified! Food is on the way to your shelter.</span>
+                          </div>
+
+                          <Button
+                            variant="success"
+                            disabled={confirmingId === (delivery.allocation_id || delivery.id)}
+                            onClick={() => handleConfirmDelivery(delivery.id, delivery.allocation_id)}
+                          >
+                            <CheckCircle2 size={14} />
+                            <span>{confirmingId === (delivery.allocation_id || delivery.id) ? 'Confirming Receipt...' : 'Confirm Delivery Received'}</span>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+            )}
+          </div>
+        </TabsContent>
 
-              {claimedDeliveries.map((delivery) => {
-                const isDelivered = delivery.status === 'DELIVERED';
-                const isInTransit = delivery.status === 'IN_TRANSIT';
-                const isClaimed = delivery.status === 'CLAIMED';
+        {/* ========================================================================= */}
+        {/* TAB 4: DELIVERY HISTORY & COMPLETED AUDIT LOG                             */}
+        {/* ========================================================================= */}
+        <TabsContent value="history">
+          <div>
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: 'var(--muted-foreground)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '0.75rem',
+            }}>
+              Delivery History ({pastDeliveries.length})
+            </div>
 
-                return (
+            {pastDeliveries.length === 0 ? (
+              <Card style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
+                <CardDescription>
+                  No past completed delivery records yet.
+                </CardDescription>
+              </Card>
+            ) : (
+              <div>
+                {pastDeliveries.map((delivery) => (
                   <div key={delivery.id} className="batch-card" style={{ padding: '1.25rem' }}>
                     <div className="batch-card-header">
                       <div>
                         <div className="batch-title">{delivery.food_type}</div>
                         <div className="batch-meta-row" style={{ marginTop: '0.25rem' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                            Portion: {delivery.allocated_kg || delivery.quantity_claimed_kg || delivery.quantity_kg} kg
+                          </span>
+                          <span>&bull;</span>
                           <MapPin size={13} />
                           <span>Pickup: <b>{delivery.pickup_address}</b></span>
+                          {delivery.rider_name && (
+                            <>
+                              <span>&bull;</span>
+                              <span>Rider: <b>{delivery.rider_name}</b></span>
+                            </>
+                          )}
                         </div>
                       </div>
 
-                      <Badge
-                        variant={isDelivered ? 'success' : isInTransit ? 'info' : 'warning'}
-                      >
-                        {isDelivered && <CheckCircle2 size={11} />}
-                        {isInTransit && <Truck size={11} />}
-                        {isClaimed && <Clock size={11} />}
-                        <span>
-                          {isInTransit ? 'In Transit' : isDelivered ? 'Delivered' : 'Awaiting Pickup'}
-                        </span>
+                      <Badge variant="success">
+                        <CheckCircle2 size={11} />
+                        <span>Delivered</span>
                       </Badge>
                     </div>
 
-                    {/* Rider Fleet Assignment Box */}
-                    {delivery.assignment_id ? (
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: '0.5rem',
-                          padding: '0.75rem 1rem',
-                          backgroundColor: 'rgba(56, 189, 248, 0.06)',
-                          border: '1px solid rgba(56, 189, 248, 0.2)',
-                          borderRadius: '8px',
-                          margin: '0.75rem 0',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#38bdf8',
-                            }}
-                          >
-                            <Bike size={16} />
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f3f4f6' }}>
-                              Assigned Rider: {delivery.rider_name || 'Rider Assigned'}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                              {delivery.rider_phone ? `Phone: ${delivery.rider_phone} • ` : ''}
-                              Status: <span style={{ color: '#38bdf8', fontWeight: 600 }}>{delivery.assignment_status || 'ASSIGNED'}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {delivery.status !== 'DELIVERED' && delivery.status !== 'IN_TRANSIT' && (
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setAssigningDelivery(delivery)}
-                              style={{ fontSize: '0.75rem' }}
-                            >
-                              Change Rider
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={cancellingAssignId === delivery.assignment_id}
-                              onClick={() => handleCancelAssignment(delivery.assignment_id)}
-                              style={{ fontSize: '0.75rem', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                            >
-                              Cancel Rider
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: '0.5rem',
-                          padding: '0.75rem 1rem',
-                          backgroundColor: 'rgba(234, 179, 8, 0.08)',
-                          border: '1px solid rgba(234, 179, 8, 0.25)',
-                          borderRadius: '8px',
-                          margin: '0.75rem 0',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              backgroundColor: 'rgba(234, 179, 8, 0.15)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#eab308',
-                            }}
-                          >
-                            <Bike size={16} />
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f3f4f6' }}>
-                              Rider Not Dispatched Yet
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: '#d1d5db' }}>
-                              Dispatch an authorized shelter rider to retrieve this parcel.
-                            </div>
-                          </div>
-                        </div>
-
-                        <Button
-                          size="sm"
-                          onClick={() => setAssigningDelivery(delivery)}
-                          style={{
-                            backgroundColor: '#38bdf8',
-                            color: '#090a0f',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
-                          }}
-                        >
-                          <Bike size={13} style={{ marginRight: '0.35rem' }} />
-                          <span>Assign Fleet Rider</span>
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Digital Custody Security Notice */}
-                    <div
-                      style={{
-                        padding: '0.65rem 0.85rem',
-                        borderRadius: '8px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.775rem',
-                        color: '#9ca3af',
-                        marginBottom: '0.75rem',
-                      }}
-                    >
-                      <ShieldCheck size={15} color="#38bdf8" />
-                      <span>
-                        {delivery.assignment_id
-                          ? "Authorized single-use OTP pass is active on the assigned rider's mobile terminal. Donor verifies code at physical release."
-                          : 'Pickup OTP pass will be generated exclusively for the assigned rider upon dispatch.'}
-                      </span>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      fontSize: '0.8rem',
+                      color: '#10b981',
+                      paddingTop: '0.5rem',
+                    }}>
+                      <CheckCircle2 size={14} />
+                      <span>Delivery complete and safely received at facility.</span>
                     </div>
-
-                    {/* Status Messages & Actions */}
-                    {isClaimed && (
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '0.75rem',
-                        marginTop: '0.5rem',
-                        backgroundColor: 'var(--warning-bg)',
-                        padding: '0.65rem 0.85rem',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--warning-border)'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8125rem', color: 'var(--warning-foreground)' }}>
-                          <Clock size={14} />
-                          <span>Awaiting courier dispatch / physical pickup verification.</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenCancelModal(delivery)}
-                          style={{
-                            color: 'var(--destructive-text)',
-                            borderColor: 'var(--destructive-border)',
-                            backgroundColor: 'var(--card)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                          }}
-                        >
-                          <XCircle size={13} />
-                          <span>Cancel Claim</span>
-                        </Button>
-                      </div>
-                    )}
-
-                    {isInTransit && (
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '0.75rem',
-                        paddingTop: '0.75rem',
-                        borderTop: '1px solid var(--border-subtle)'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.45rem',
-                          fontSize: '0.8125rem',
-                          color: 'var(--foreground)',
-                          fontWeight: 600
-                        }}>
-                          <Truck size={15} />
-                          <span>Courier verified! Food is on the way to your shelter.</span>
-                        </div>
-
-                        <Button
-                          variant="success"
-                          disabled={confirmingId === delivery.id}
-                          onClick={() => handleConfirmDelivery(delivery.id)}
-                        >
-                          <CheckCircle2 size={14} />
-                          <span>{confirmingId === delivery.id ? 'Confirming Receipt...' : 'Confirm Delivery Received'}</span>
-                        </Button>
-                      </div>
-                    )}
-
-                    {isDelivered && (
-                      <div className="alert-box alert-box--success" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', marginBottom: 0 }}>
-                        <CheckCircle2 size={14} />
-                        <span>Delivery complete and verified in PostgreSQL audit ledger.</span>
-                      </div>
-                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         {/* ========================================================================= */}
-        {/* TAB 4: RIDER FLEET DISPATCH & MANAGEMENT                                  */}
+        {/* TAB 5: RIDER FLEET DISPATCH & MANAGEMENT                                  */}
         {/* ========================================================================= */}
         <TabsContent value="riders">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>

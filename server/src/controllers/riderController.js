@@ -70,9 +70,21 @@ export async function assignRider(req, res, next) {
       });
     }
 
-    if (allocation.status === 'DELIVERED' || allocation.status === 'CANCELLED') {
+    if (allocation.status === 'IN_TRANSIT' || allocation.status === 'DELIVERED' || allocation.status === 'CANCELLED') {
       return res.status(400).json({
-        error: `Cannot assign rider to allocation in '${allocation.status}' state`,
+        error: `Cannot assign or change rider: Parcel is in '${allocation.status}' state and physical custody is locked.`,
+      });
+    }
+
+    // Physical Custody Gate: Check if courier has already collected the batch
+    const existingActiveAssignments = await query(
+      `SELECT status FROM delivery_assignments 
+       WHERE allocation_id = $1 AND status IN ('PICKED_UP', 'COMPLETED')`,
+      [actualAllocationId]
+    );
+    if (existingActiveAssignments.rows.length > 0) {
+      return res.status(400).json({
+        error: 'Cannot change rider: The assigned courier has already physically picked up this parcel and is en route.',
       });
     }
 
@@ -362,15 +374,19 @@ export async function updateRiderAvailability(req, res, next) {
       return res.status(404).json({ error: 'Rider not found' });
     }
 
-    await redisClient.publish(
-      'channel:alerts',
-      JSON.stringify({
-        event: 'RIDER_AVAILABILITY_CHANGED',
-        riderId,
-        is_available,
-        timestamp: new Date().toISOString(),
-      })
-    );
+    try {
+      await redisClient.publish(
+        'channel:alerts',
+        JSON.stringify({
+          event: 'RIDER_AVAILABILITY_CHANGED',
+          riderId,
+          is_available,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    } catch (pubErr) {
+      // Non-blocking
+    }
 
     res.json({
       message: `Availability updated to ${is_available ? 'Available / On Duty' : 'Unavailable / Off Duty'}`,

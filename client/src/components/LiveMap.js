@@ -121,7 +121,7 @@ export default function LiveMap() {
                   <div style={{ color: 'var(--foreground)', padding: '0.2rem' }}>
                     <b style={{ fontSize: '0.875rem' }}>{s.name}</b>
                     <div style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                      Type: {s.org_type} &bull; Capacity: {s.capacity_kg} kg
+                      Type: {s.org_type === 'SHELTER' ? 'Community Hunger Shelter' : s.org_type}
                     </div>
                   </div>
                 </Popup>

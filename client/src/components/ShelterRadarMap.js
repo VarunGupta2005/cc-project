@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -113,18 +113,32 @@ const createDeliveryCourierIcon = (color = '#0284c7') =>
     popupAnchor: [0, -21],
   });
 
-// Automatically fits map viewport when radius or center pin changes
-function FitRadarBounds({ center, radiusKm }) {
-  const map = useMap();
+// Cache static Leaflet icons so marker DOM elements are not recreated on every render
+const SHELTER_ICON = createShelterIcon();
+const FOOD_ICON = createFoodIcon();
+const COURIER_ICONS_MAP = {};
+const getDeliveryCourierIcon = (color = '#0284c7') => {
+  if (!COURIER_ICONS_MAP[color]) {
+    COURIER_ICONS_MAP[color] = createDeliveryCourierIcon(color);
+  }
+  return COURIER_ICONS_MAP[color];
+};
 
-  const centerLat = center?.[0];
-  const centerLng = center?.[1];
+// Automatically fits map viewport when radius or center pin changes (guarded against re-triggering on background poll)
+function FitRadarBounds({ centerLat, centerLng, radiusKm }) {
+  const map = useMap();
+  const prevRef = useRef({ lat: null, lng: null, rad: null });
 
   useEffect(() => {
     if (centerLat && centerLng && radiusKm) {
+      const prev = prevRef.current;
+      // Skip if coordinates and radius haven't changed to prevent tile flicker
+      if (prev.lat === centerLat && prev.lng === centerLng && prev.rad === radiusKm) {
+        return;
+      }
+      prevRef.current = { lat: centerLat, lng: centerLng, rad: radiusKm };
+
       try {
-        map.invalidateSize();
-        // 25% margin buffer so the scan circle fits comfortably with breathing room
         const effectiveRadiusKm = parseFloat(radiusKm) * 1.25;
 
         // 1 deg latitude is ~111 km; 1 deg longitude at latitude lat is ~111 * cos(lat) km
@@ -138,7 +152,7 @@ function FitRadarBounds({ center, radiusKm }) {
         map.fitBounds([southWest, northEast], {
           padding: [25, 25],
           maxZoom: 15,
-          animate: true,
+          animate: false,
         });
       } catch (err) {
         console.error('FitRadarBounds error:', err);
@@ -149,7 +163,7 @@ function FitRadarBounds({ center, radiusKm }) {
   return null;
 }
 
-export default function ShelterRadarMap({
+function ShelterRadarMap({
   shelterLat = 12.98,
   shelterLng = 77.605,
   shelterName = 'My Shelter',
@@ -160,7 +174,9 @@ export default function ShelterRadarMap({
   onClaim,
   height = '440px',
 }) {
-  const center = [parseFloat(shelterLat) || 12.98, parseFloat(shelterLng) || 77.605];
+  const centerLat = parseFloat(shelterLat) || 12.98;
+  const centerLng = parseFloat(shelterLng) || 77.605;
+  const center = useMemo(() => [centerLat, centerLng], [centerLat, centerLng]);
   const radiusMeters = Math.max(1000, (parseFloat(radiusKm) || 15) * 1000);
 
   // Filter active claimed batches in-transit or pending pickup
@@ -196,7 +212,7 @@ export default function ShelterRadarMap({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          <FitRadarBounds center={center} radiusKm={radiusKm} />
+          <FitRadarBounds centerLat={centerLat} centerLng={centerLng} radiusKm={radiusKm} />
 
           {/* 1. Dynamic Radar Scan Perimeter */}
           <Circle
@@ -212,7 +228,7 @@ export default function ShelterRadarMap({
           />
 
           {/* 2. Registered Shelter Center Marker (Central Hub) */}
-          <Marker position={center} icon={createShelterIcon()}>
+          <Marker position={center} icon={SHELTER_ICON}>
             <Popup>
               <div style={{ padding: '0.2rem', minWidth: '170px', fontFamily: 'inherit' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--foreground)' }}>
@@ -239,7 +255,7 @@ export default function ShelterRadarMap({
             const routeColor = ROUTE_PALETTE[idx % ROUTE_PALETTE.length];
 
             return (
-              <Marker key={`delivery-courier-${item.id}`} position={donorPos} icon={createDeliveryCourierIcon(routeColor)}>
+              <Marker key={`delivery-courier-${item.id}`} position={donorPos} icon={getDeliveryCourierIcon(routeColor)}>
                 <Popup>
                   <div style={{ padding: '0.25rem', minWidth: '220px', fontFamily: 'inherit' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
@@ -301,7 +317,7 @@ export default function ShelterRadarMap({
             const lockMinsLeft = Math.max(1, Math.ceil((item.tier_seconds_remaining || 0) / 60));
 
             return (
-              <Marker key={item.id} position={[lat, lng]} icon={createFoodIcon()}>
+              <Marker key={item.id} position={[lat, lng]} icon={FOOD_ICON}>
                 <Popup>
                   <div style={{ padding: '0.25rem', minWidth: '220px', fontFamily: 'inherit' }}>
                     {/* Priority Tier Badges */}
@@ -495,3 +511,5 @@ export default function ShelterRadarMap({
     </div>
   );
 }
+
+export default React.memo(ShelterRadarMap);

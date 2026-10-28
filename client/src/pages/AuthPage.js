@@ -75,7 +75,7 @@ export default function AuthPage({ onLoginSuccess }) {
           org_type: role === 'DONOR' ? 'HOTEL' : 'SHELTER',
           latitude: parseFloat(lat),
           longitude: parseFloat(lng),
-          capacity_kg: parseFloat(capacityKg),
+          capacity_kg: role === 'SHELTER' ? 9999 : (parseFloat(capacityKg) || 100),
         },
       };
 
@@ -417,17 +417,19 @@ export default function AuthPage({ onLoginSuccess }) {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">
-                  <span>{role === 'DONOR' ? 'Daily Surplus Cap (kg)' : 'Cold Storage Capacity (kg)'}</span>
-                </label>
-                <Input
-                  type="number"
-                  placeholder="100"
-                  value={capacityKg}
-                  onChange={(e) => setCapacityKg(e.target.value)}
-                />
-              </div>
+              {role === 'DONOR' && (
+                <div className="form-group">
+                  <label className="form-label">
+                    <span>Daily Surplus Cap (kg)</span>
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="100"
+                    value={capacityKg}
+                    onChange={(e) => setCapacityKg(e.target.value)}
+                  />
+                </div>
+              )}
 
               <div className="form-group">
                 <label className="form-label">Official Email</label>

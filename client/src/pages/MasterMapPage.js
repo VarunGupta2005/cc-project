@@ -82,7 +82,6 @@ export default function MasterMapPage() {
                     <th style={{ padding: '0.65rem 0.5rem' }}>Quantity Needed</th>
                     <th style={{ padding: '0.65rem 0.5rem' }}>Food Category</th>
                     <th style={{ padding: '0.65rem 0.5rem' }}>Dietary Compliance</th>
-                    <th style={{ padding: '0.65rem 0.5rem' }}>Available Capacity</th>
                     <th style={{ padding: '0.65rem 0.5rem' }}>Need-By Deadline</th>
                     <th style={{ padding: '0.65rem 0.5rem' }}>Status</th>
                   </tr>
@@ -101,9 +100,6 @@ export default function MasterMapPage() {
                       </td>
                       <td style={{ padding: '0.65rem 0.5rem' }}>
                         <Badge variant="outline">{r.dietary_type}</Badge>
-                      </td>
-                      <td style={{ padding: '0.65rem 0.5rem', color: 'var(--muted-foreground)' }}>
-                        {r.available_capacity_kg || 50} kg
                       </td>
                       <td style={{ padding: '0.65rem 0.5rem', color: 'var(--muted-foreground)' }}>
                         {new Date(r.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

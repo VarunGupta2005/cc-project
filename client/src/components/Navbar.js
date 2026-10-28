@@ -133,7 +133,7 @@ export default function Navbar({ activeTab, setActiveTab, session, onLogout }) {
 
         <div className="cluster-status">
           <span className="status-dot"></span>
-          <span>Cluster: 3x Replicas</span>
+          <span>RescueGrid Operational</span>
         </div>
       </div>
     </nav>

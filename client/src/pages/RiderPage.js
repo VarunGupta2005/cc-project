@@ -10,7 +10,6 @@ import {
   XCircle,
   Copy,
   Check,
-  Layers,
 } from 'lucide-react';
 import { fetchRiderTasks, acceptRiderTask, cancelRiderAssignment, updateRiderAvailability } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
@@ -82,6 +81,19 @@ export default function RiderPage({ session }) {
     setTimeout(() => setCopiedOtp(null), 2000);
   };
 
+  const handleToggleAvailability = async () => {
+    try {
+      setTogglingAvailability(true);
+      const newStatus = !isAvailable;
+      await updateRiderAvailability(newStatus);
+      setIsAvailable(newStatus);
+    } catch (err) {
+      alert(err.message || 'Failed to update availability status');
+    } finally {
+      setTogglingAvailability(false);
+    }
+  };
+
   const activeTasks = tasks.filter((t) => t.assignment_status !== 'COMPLETED' && t.assignment_status !== 'CANCELLED');
   const completedTasks = tasks.filter((t) => t.assignment_status === 'COMPLETED');
 
@@ -106,14 +118,21 @@ export default function RiderPage({ session }) {
                 <Truck size={22} />
               </div>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--foreground)' }}>
                     Rider Dispatch Terminal
                   </h2>
-                  <Badge variant="success">
-                    <CheckCircle2 size={11} />
-                    <span>On Duty</span>
-                  </Badge>
+                  {isAvailable ? (
+                    <Badge variant="success" style={{ gap: '0.35rem' }}>
+                      <CheckCircle2 size={11} />
+                      <span>On Duty</span>
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)', gap: '0.35rem' }}>
+                      <XCircle size={11} />
+                      <span>Off Duty / Unavailable</span>
+                    </Badge>
+                  )}
                 </div>
                 <div style={{ fontSize: '0.8125rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
                   Carrier: <b>{session?.user?.full_name}</b> &bull; Assigned to: <b>{session?.org?.name || 'Hope Haven Shelter'}</b>
@@ -121,13 +140,59 @@ export default function RiderPage({ session }) {
               </div>
             </div>
 
-            <Button variant="outline" size="sm" onClick={loadTasks} disabled={loading}>
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-              <span>Refresh Tasks</span>
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <Button
+                variant={isAvailable ? 'outline' : 'default'}
+                size="sm"
+                onClick={handleToggleAvailability}
+                disabled={togglingAvailability}
+                style={{
+                  fontSize: '0.8rem',
+                  gap: '0.4rem',
+                  backgroundColor: !isAvailable ? '#16a34a' : undefined,
+                  color: !isAvailable ? '#ffffff' : undefined,
+                  borderColor: isAvailable ? 'rgba(239, 68, 68, 0.4)' : undefined,
+                }}
+              >
+                {isAvailable ? (
+                  <>
+                    <XCircle size={13} style={{ color: '#f87171' }} />
+                    <span style={{ color: '#f87171' }}>{togglingAvailability ? 'Updating...' : 'Mark Unavailable (Go Off Duty)'}</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={13} />
+                    <span>{togglingAvailability ? 'Updating...' : 'Mark Available (Go On Duty)'}</span>
+                  </>
+                )}
+              </Button>
+
+              <Button variant="outline" size="sm" onClick={loadTasks} disabled={loading}>
+                <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                <span>Refresh Tasks</span>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {!isAvailable && (
+        <div style={{
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          border: '1px solid rgba(239, 68, 68, 0.25)',
+          borderRadius: 'var(--radius)',
+          padding: '0.75rem 1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.65rem',
+          marginBottom: '1.25rem',
+          fontSize: '0.825rem',
+          color: '#f87171',
+        }}>
+          <XCircle size={16} />
+          <span>You are currently <b>Off Duty / Unavailable</b>. Shelter dispatchers cannot assign new pickup missions to you until you toggle back to On Duty.</span>
+        </div>
+      )}
 
       {errorMsg && (
         <div className="alert-box alert-box--error">
@@ -159,11 +224,6 @@ export default function RiderPage({ session }) {
               )}
             </TabsTrigger>
           </TabsList>
-
-          <Badge variant="secondary" style={{ gap: '0.35rem' }}>
-            <Layers size={12} />
-            <span>Encrypted Custody Handshake</span>
-          </Badge>
         </div>
 
         {/* ACTIVE MISSIONS TAB */}
@@ -324,7 +384,7 @@ export default function RiderPage({ session }) {
                             Authorized Pickup Verification Pass
                           </div>
                           <p style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                            Present this single-use 6-digit cryptographic token to the donor staff at physical collection:
+                            Present this 6-digit verification code to the kitchen staff at pickup:
                           </p>
 
                           <div className="otp-digit-display" style={{ margin: '0.65rem 0' }}>
@@ -431,7 +491,7 @@ export default function RiderPage({ session }) {
 
                     <Badge variant="success" style={{ gap: '0.35rem' }}>
                       <CheckCircle2 size={12} />
-                      <span>Delivered & Audited</span>
+                      <span>Delivered</span>
                     </Badge>
                   </CardContent>
                 </Card>

@@ -4,7 +4,7 @@ import { verifyHandoverToken, hashTokenDigest } from '../services/tokenService.j
 
 export async function verifyPickup(req, res, next) {
   try {
-    const { listing_id, verification_code } = req.body;
+    const { listing_id, verification_code, allocation_id } = req.body;
 
     if (!listing_id || !verification_code) {
       return res.status(400).json({ error: 'Listing ID and Verification Code required' });
@@ -28,7 +28,7 @@ export async function verifyPickup(req, res, next) {
     }
 
     // Status transition validation
-    const listingRes = await query(`SELECT status, donor_id FROM food_listings WHERE id = $1`, [listing_id]);
+    const listingRes = await query(`SELECT status, donor_id, quantity_remaining FROM food_listings WHERE id = $1`, [listing_id]);
     if (listingRes.rows.length === 0) {
       return res.status(404).json({ error: 'Listing not found' });
     }
@@ -45,32 +45,47 @@ export async function verifyPickup(req, res, next) {
       return res.status(403).json({ error: 'Forbidden: You are not authorized to verify handover for another donor.' });
     }
 
-    // Check delivery assignments for an assigned rider OTP
+    // Check delivery assignments for an assigned rider OTP (check ALL active assignments for listing or specific allocation)
     const assignRes = await query(
-      `SELECT d.*, a.id as alloc_id, a.shelter_id
+      `SELECT d.*, a.id as alloc_id, a.shelter_id, a.allocated_kg
        FROM delivery_assignments d
        JOIN allocations a ON a.id = d.allocation_id
-       WHERE a.listing_id = $1 AND d.status IN ('ASSIGNED', 'ACCEPTED')
-       ORDER BY d.assigned_at DESC LIMIT 1`,
-      [listing_id]
+       WHERE a.listing_id = $1 
+         AND ($2::uuid IS NULL OR a.id = $2::uuid)
+         AND d.status IN ('ASSIGNED', 'ACCEPTED')
+       ORDER BY d.assigned_at DESC`,
+      [listing_id, allocation_id || null]
     );
 
     let isMatch = false;
     let matchedAssignment = null;
 
-    if (assignRes.rows.length > 0 && assignRes.rows[0].pickup_otp) {
-      matchedAssignment = assignRes.rows[0];
-      isMatch = verifyHandoverToken(matchedAssignment.pickup_otp, verification_code);
+    for (const assignment of assignRes.rows) {
+      if (assignment.pickup_otp && verifyHandoverToken(assignment.pickup_otp, verification_code)) {
+        isMatch = true;
+        matchedAssignment = assignment;
+        break;
+      }
     }
 
     // Fallback to legacy handover_audits verification for backwards compatibility
+    let matchedAudit = null;
     if (!isMatch) {
       const auditRes = await query(
-        `SELECT * FROM handover_audits WHERE listing_id = $1 ORDER BY created_at DESC LIMIT 1`,
-        [listing_id]
+        `SELECT * FROM handover_audits 
+         WHERE listing_id = $1 
+           AND ($2::uuid IS NULL OR allocation_id = $2::uuid)
+           AND (proof_notes IS NULL OR proof_notes != 'CLAIM_CANCELLED')
+           AND delivery_time IS NULL
+         ORDER BY created_at DESC`,
+        [listing_id, allocation_id || null]
       );
-      if (auditRes.rows.length > 0 && auditRes.rows[0].verification_token) {
-        isMatch = verifyHandoverToken(auditRes.rows[0].verification_token, verification_code);
+      for (const audit of auditRes.rows) {
+        if (audit.verification_token && verifyHandoverToken(audit.verification_token, verification_code)) {
+          isMatch = true;
+          matchedAudit = audit;
+          break;
+        }
       }
     }
 
@@ -91,6 +106,19 @@ export async function verifyPickup(req, res, next) {
     } catch (e) {}
 
     const now = new Date();
+    const targetAllocId = matchedAssignment?.alloc_id || matchedAudit?.allocation_id || allocation_id;
+
+    // Custody check: Ensure this parcel is not already picked up or completed
+    if (targetAllocId) {
+      const allocCheck = await query(`SELECT status FROM allocations WHERE id = $1`, [targetAllocId]);
+      const currentAllocStatus = allocCheck.rows[0]?.status;
+      if (currentAllocStatus === 'DELIVERED') {
+        return res.status(400).json({ error: 'This parcel has already been delivered.' });
+      }
+      if (currentAllocStatus === 'IN_TRANSIT') {
+        return res.status(400).json({ error: 'Pickup has already been verified. Parcel is in transit.' });
+      }
+    }
 
     // 1. If assigned to a rider, transition assignment to PICKED_UP
     if (matchedAssignment) {
@@ -100,40 +128,66 @@ export async function verifyPickup(req, res, next) {
          WHERE id = $2`,
         [now, matchedAssignment.id]
       );
+    }
 
+    // 2. Mark the matched allocation as IN_TRANSIT
+    if (targetAllocId) {
       await query(
         `UPDATE allocations 
          SET status = 'IN_TRANSIT', updated_at = $1 
          WHERE id = $2`,
-        [now, matchedAssignment.alloc_id]
+        [now, targetAllocId]
       );
     }
 
-    // 2. Mark listing as IN_TRANSIT
-    await query(
-      `UPDATE food_listings SET status = 'IN_TRANSIT' WHERE id = $1`,
-      [listing_id]
-    );
-
     // 3. Update handover audit with digest and pickup time
     const digest = hashTokenDigest(verification_code);
-    await query(
-      `UPDATE handover_audits 
-       SET pickup_time = $1, token_digest = COALESCE(token_digest, $2) 
-       WHERE listing_id = $3`,
-      [now, digest, listing_id]
+    if (targetAllocId) {
+      await query(
+        `UPDATE handover_audits 
+         SET pickup_time = $1, token_digest = COALESCE(token_digest, $2) 
+         WHERE listing_id = $3 AND (allocation_id = $4 OR id = $5)`,
+        [now, digest, listing_id, targetAllocId, matchedAudit?.id || null]
+      );
+    } else {
+      await query(
+        `UPDATE handover_audits 
+         SET pickup_time = $1, token_digest = COALESCE(token_digest, $2) 
+         WHERE listing_id = $3`,
+        [now, digest, listing_id]
+      );
+    }
+
+    // 4. Check if there are other allocations still awaiting pickup (RESERVED)
+    const pendingAllocRes = await query(
+      `SELECT COUNT(*) as pending_count 
+       FROM allocations 
+       WHERE listing_id = $1 AND status = 'RESERVED'`,
+      [listing_id]
     );
+    const pendingCount = parseInt(pendingAllocRes.rows[0]?.pending_count || '0', 10);
+    const remainingKg = parseFloat(listing.quantity_remaining || '0');
+
+    // Only transition listing status to IN_TRANSIT if all claimed portions have been picked up
+    if (pendingCount === 0 && remainingKg <= 0) {
+      await query(
+        `UPDATE food_listings SET status = 'IN_TRANSIT' WHERE id = $1`,
+        [listing_id]
+      );
+    }
 
     await redisClient.publish('channel:alerts', JSON.stringify({
       event: 'DELIVERY_UPDATE',
       listingId: listing_id,
-      status: 'IN_TRANSIT',
+      allocationId: targetAllocId,
+      status: pendingCount === 0 && remainingKg <= 0 ? 'IN_TRANSIT' : listing.status,
       pickup_time: now.toISOString(),
     }));
 
     res.json({
-      message: 'Pickup verified successfully! Batch is now IN_TRANSIT.',
+      message: 'Pickup verified successfully! Batch portion is now IN_TRANSIT.',
       pickup_time: now,
+      allocation_id: targetAllocId,
     });
   } catch (err) {
     next(err);
@@ -156,9 +210,18 @@ export async function confirmDelivery(req, res, next) {
       });
     }
 
+    // Resolve listing and allocation
+    let listingId = listing_id;
+    let allocId = allocation_id;
+
+    if (!listingId && allocId) {
+      const aRes = await query(`SELECT listing_id FROM allocations WHERE id = $1`, [allocId]);
+      if (aRes.rows.length > 0) listingId = aRes.rows[0].listing_id;
+    }
+
     const listingRes = await query(
-      `SELECT status, claimed_by, quantity_kg FROM food_listings WHERE id = $1`,
-      [listing_id]
+      `SELECT status, claimed_by, quantity_kg, quantity_remaining FROM food_listings WHERE id = $1`,
+      [listingId]
     );
 
     if (listingRes.rows.length === 0) {
@@ -166,87 +229,103 @@ export async function confirmDelivery(req, res, next) {
     }
     const listing = listingRes.rows[0];
 
-    // Idempotent delivery confirmation
-    if (listing.status === 'DELIVERED') {
-      const existingAudit = await query(`SELECT * FROM handover_audits WHERE listing_id = $1`, [listing_id]);
-      return res.json({
-        message: 'Delivery was already confirmed. Permanent audit is recorded.',
-        audit: existingAudit.rows[0],
-      });
-    }
-
-    if (listing.status !== 'IN_TRANSIT' && listing.status !== 'CLAIMED' && listing.status !== 'PARTIALLY_CLAIMED') {
-      return res.status(400).json({
-        error: `Cannot confirm delivery for listing in '${listing.status}' state. Batch must be 'IN_TRANSIT' or 'CLAIMED'.`,
-      });
-    }
-
-    // Ownership check if authenticated shelter
-    if (req.user && req.user.role === 'SHELTER' && req.user.org_id && listing.claimed_by !== req.user.org_id) {
-      return res.status(403).json({ error: 'Forbidden: You cannot confirm delivery for a donation claimed by another organization.' });
+    // If caller is a shelter, find their allocation if not provided
+    if (req.user && req.user.role === 'SHELTER' && req.user.org_id && !allocId) {
+      const sAllocRes = await query(
+        `SELECT id FROM allocations WHERE listing_id = $1 AND shelter_id = $2 ORDER BY created_at DESC LIMIT 1`,
+        [listingId, req.user.org_id]
+      );
+      if (sAllocRes.rows.length > 0) {
+        allocId = sAllocRes.rows[0].id;
+      }
     }
 
     const now = new Date();
 
-    // 1. Mark listing as DELIVERED
-    await query(
-      `UPDATE food_listings SET status = 'DELIVERED' WHERE id = $1`,
-      [listing_id]
-    );
+    // 1. Mark specific allocation as DELIVERED
+    if (allocId) {
+      await query(
+        `UPDATE allocations SET status = 'DELIVERED', updated_at = $1 WHERE id = $2`,
+        [now, allocId]
+      );
 
-    // 2. Mark allocations as DELIVERED
-    await query(
-      `UPDATE allocations SET status = 'DELIVERED', updated_at = $1 WHERE listing_id = $2`,
-      [now, listing_id]
-    );
+      await query(
+        `UPDATE delivery_assignments 
+         SET status = 'COMPLETED', completed_at = $1
+         WHERE allocation_id = $2 AND status IN ('PICKED_UP', 'ACCEPTED', 'ASSIGNED')`,
+        [now, allocId]
+      );
 
-    // 3. Mark active delivery assignments as COMPLETED
-    await query(
-      `UPDATE delivery_assignments 
-       SET status = 'COMPLETED', completed_at = $1
-       WHERE allocation_id IN (SELECT id FROM allocations WHERE listing_id = $2)
-       AND status IN ('PICKED_UP', 'ACCEPTED', 'ASSIGNED')`,
-      [now, listing_id]
-    );
+      await query(
+        `UPDATE handover_audits 
+         SET delivery_time = $1, proof_notes = $2
+         WHERE allocation_id = $3 OR (listing_id = $4 AND (ngo_id = $5 OR $5::uuid IS NULL))`,
+        [now, notes || 'Verified handover and receipt at shelter', allocId, listingId, req.user?.org_id || null]
+      );
+    } else {
+      await query(
+        `UPDATE allocations SET status = 'DELIVERED', updated_at = $1 WHERE listing_id = $2`,
+        [now, listingId]
+      );
 
-    const auditUpdate = await query(
-      `UPDATE handover_audits 
-       SET delivery_time = $1, proof_notes = $2
-       WHERE listing_id = $3
-       RETURNING *`,
-      [now, notes || 'Verified handover and receipt at shelter', listing_id]
+      await query(
+        `UPDATE delivery_assignments 
+         SET status = 'COMPLETED', completed_at = $1
+         WHERE allocation_id IN (SELECT id FROM allocations WHERE listing_id = $2)
+         AND status IN ('PICKED_UP', 'ACCEPTED', 'ASSIGNED')`,
+        [now, listingId]
+      );
+
+      await query(
+        `UPDATE handover_audits 
+         SET delivery_time = $1, proof_notes = $2
+         WHERE listing_id = $3`,
+        [now, notes || 'Verified handover and receipt at shelter', listingId]
+      );
+    }
+
+    // 2. Check if all allocations for this listing are now DELIVERED
+    const remainingAllocsRes = await query(
+      `SELECT COUNT(*) as undelivered_count 
+       FROM allocations 
+       WHERE listing_id = $1 AND status != 'DELIVERED'`,
+      [listingId]
     );
+    const undeliveredCount = parseInt(remainingAllocsRes.rows[0]?.undelivered_count || '0', 10);
+    const qtyRemaining = parseFloat(listing.quantity_remaining || '0');
+
+    if (undeliveredCount === 0 && qtyRemaining <= 0) {
+      await query(
+        `UPDATE food_listings SET status = 'DELIVERED' WHERE id = $1`,
+        [listingId]
+      );
+    }
 
     // If recipient has active demand, mark fulfilled
-    if (listing.claimed_by) {
+    const shelterOrgId = req.user?.org_id || listing.claimed_by;
+    if (shelterOrgId) {
       try {
         await query(
           `UPDATE recipient_requests 
-           SET status = 'FULFILLED'
-           WHERE id = (
-             SELECT id FROM recipient_requests 
-             WHERE org_id = $1 AND status = 'ACTIVE' 
-             ORDER BY created_at ASC 
-             LIMIT 1
-           )`,
-          [listing.claimed_by]
+           SET status = 'FULFILLED', updated_at = CURRENT_TIMESTAMP 
+           WHERE org_id = $1 AND status = 'ACTIVE'`,
+          [shelterOrgId]
         );
-      } catch (reqErr) {
-        // Non-blocking
-      }
+      } catch (reqErr) {}
     }
 
-    // Broadcast delivery completion
     await redisClient.publish('channel:alerts', JSON.stringify({
       event: 'DELIVERY_UPDATE',
-      listingId: listing_id,
-      status: 'DELIVERED',
+      listingId,
+      allocationId: allocId,
+      status: undeliveredCount === 0 && qtyRemaining <= 0 ? 'DELIVERED' : 'IN_TRANSIT',
       delivery_time: now.toISOString(),
     }));
 
     res.json({
-      message: 'Delivery confirmed and verified. Permanent audit committed to PostgreSQL!',
-      audit: auditUpdate.rows[0],
+      message: 'Delivery confirmed successfully! Handover audit updated.',
+      delivery_time: now,
+      allocation_id: allocId,
     });
   } catch (err) {
     next(err);

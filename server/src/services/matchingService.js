@@ -115,20 +115,10 @@ export function evaluateCandidateFeasibility(listing, recipient, options = {}) {
     return { feasible: false, rejection_reasons: rejectionReasons, transit: null };
   }
 
-  // 4. Batch quantity and capacity constraints
+  // 4. Batch quantity validation
   const batchQty = parseFloat(listing.quantity_kg);
-  const availCap = parseFloat(
-    recipient.available_capacity_kg !== undefined
-      ? recipient.available_capacity_kg
-      : recipient.capacity_kg
-  );
-
   if (isNaN(batchQty) || batchQty <= 0) {
     rejectionReasons.push('INVALID_BATCH_QUANTITY');
-  }
-
-  if (isNaN(availCap) || availCap < batchQty) {
-    rejectionReasons.push(`INSUFFICIENT_CAPACITY: available ${availCap || 0}kg < required ${batchQty}kg`);
   }
 
   // 5. Food Category Compatibility
@@ -200,11 +190,6 @@ export function scoreFeasibleCandidate(listing, recipient, transit, options = {}
 
   const maxRadius = options.max_radius_km || cfg.max_radius_km;
   const batchQty = parseFloat(listing.quantity_kg);
-  const availCap = parseFloat(
-    recipient.available_capacity_kg !== undefined
-      ? recipient.available_capacity_kg
-      : recipient.capacity_kg
-  );
 
   // 1. Travel Score (0 to 1): 1 for closest, 0 at max radius
   const travelScore = Math.max(0, Math.min(1, 1 - transit.distance_km / maxRadius));
@@ -213,20 +198,21 @@ export function scoreFeasibleCandidate(listing, recipient, transit, options = {}
   // Measures safe cushion. 120+ minutes of slack is ideal (1.0).
   const slackScore = Math.max(0, Math.min(1, transit.consumption_slack_minutes / 180.0));
 
-  // 3. Useful Quantity & Capacity Fit Score (0 to 1):
-  // Formula: Q_useful = min(Q_offered, Q_needed, Q_capacity)
+  // 3. Useful Quantity & Demand Fit Score (0 to 1):
+  // Formula: Q_useful = min(Q_offered, Q_needed) if demand posted, else batchQty
   const neededQty = parseFloat(recipient.needed_kg || recipient.quantity_needed_kg || 0);
   const qUseful = neededQty > 0
-    ? Math.min(batchQty, neededQty, availCap)
-    : Math.min(batchQty, availCap);
+    ? Math.min(batchQty, neededQty)
+    : batchQty;
 
-  const fitRatio = availCap > 0 ? qUseful / availCap : 0;
-  const fitScore = Math.max(0, Math.min(1, fitRatio > 1 ? 0 : 0.5 + 0.5 * fitRatio));
+  const fitScore = neededQty > 0
+    ? Math.max(0.5, Math.min(1, qUseful / Math.max(batchQty, neededQty)))
+    : 0.85;
 
   // 4. Need / Priority Score (0 to 1):
-  // Explicitly distinguish verified demand-backed matches (active compatible request) from general capacity compatibility
+  // Explicitly distinguish verified demand-backed matches (active compatible request) from general availability
   const isDemandBacked = Boolean(recipient.has_active_request || recipient.active_request_id || neededQty > 0);
-  const needScore = isDemandBacked ? 1.0 : 0.6;
+  const needScore = isDemandBacked ? 1.0 : 0.65;
 
   // Composite Weighted Score
   const totalScore = parseFloat(
@@ -238,20 +224,19 @@ export function scoreFeasibleCandidate(listing, recipient, transit, options = {}
     ).toFixed(4)
   );
 
-  // Construct transparent explanation distinguishing demand vs capacity match
-  const matchCategory = isDemandBacked ? 'DEMAND_BACKED' : 'CAPACITY_COMPATIBLE';
+  // Construct transparent explanation distinguishing demand vs general proximity match
+  const matchCategory = isDemandBacked ? 'DEMAND_BACKED' : 'PROXIMITY_COMPATIBLE';
   const explanation = {
     distance_km: transit.distance_km,
     round_trip_eta_minutes: transit.round_trip_eta_minutes,
     deadline_slack_minutes: transit.consumption_slack_minutes,
-    available_capacity_kg: availCap,
     batch_quantity_kg: batchQty,
     useful_quantity_kg: qUseful,
     match_type: matchCategory,
     dietary_compatibility: 'COMPATIBLE',
     summary: isDemandBacked
       ? `Verified Demand-Backed Match (${transit.distance_km}km, ${transit.round_trip_eta_minutes}m round-trip). Fulfills ${qUseful}kg of active shelter requirement with ${transit.consumption_slack_minutes}m safety buffer.`
-      : `Capacity-Compatible Candidate (${transit.distance_km}km, ${transit.round_trip_eta_minutes}m round-trip). Offers ${availCap}kg storage with ${transit.consumption_slack_minutes}m safety buffer.`,
+      : `Verified Nearby Shelter (${transit.distance_km}km, ${transit.round_trip_eta_minutes}m round-trip). Available for redistribution with ${transit.consumption_slack_minutes}m safety buffer.`,
   };
 
   return {

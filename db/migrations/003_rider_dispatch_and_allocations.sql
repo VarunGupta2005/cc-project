@@ -73,11 +73,11 @@ ALTER TABLE handover_audits
   ADD COLUMN IF NOT EXISTS token_digest VARCHAR(255);
 
 -- 7. Seed Admin and Hope Haven Rider accounts (password123 for both)
--- bcrypt hash for 'password123': $2b$10$wT8KzU4D4zFqFmHl4oJg..qCgE/aQyG41X7l5L8p2fHw7N8g0LwGe
+-- bcrypt hash for 'password123': $2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW
 INSERT INTO users (id, email, password_hash, role, full_name, phone, organization_id)
 VALUES 
-  ('77777777-7777-7777-7777-777777777777', 'admin@rescuegrid.org', '$2b$10$wT8KzU4D4zFqFmHl4oJg..qCgE/aQyG41X7l5L8p2fHw7N8g0LwGe', 'ADMIN', 'System Operations Admin', '+91 99999 00000', NULL),
-  ('88888888-8888-8888-8888-888888888888', 'rider@hopehaven.org', '$2b$10$wT8KzU4D4zFqFmHl4oJg..qCgE/aQyG41X7l5L8p2fHw7N8g0LwGe', 'RIDER', 'Vikram Singh (Hope Haven Courier)', '+91 98765 43210', 'cccccccc-cccc-cccc-cccc-cccccccccccc')
+  ('77777777-7777-7777-7777-777777777777', 'admin@rescuegrid.org', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'ADMIN', 'System Operations Admin', '+91 99999 00000', NULL),
+  ('88888888-8888-8888-8888-888888888888', 'rider@hopehaven.org', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'RIDER', 'Vikram Singh (Hope Haven Courier)', '+91 98765 43210', 'cccccccc-cccc-cccc-cccc-cccccccccccc')
 ON CONFLICT (email) DO UPDATE
 SET role = EXCLUDED.role,
     organization_id = EXCLUDED.organization_id;

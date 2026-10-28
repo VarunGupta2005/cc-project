@@ -140,18 +140,14 @@ async function runMatchingUnitTests() {
     'Rejection reason explicitly cites dietary incompatibility'
   );
 
-  // Case 2.4: Insufficient Capacity
+  // Case 2.4: Shelter without storage capacity limit is feasible (capacity unconstrained)
   const smallShelter = {
     ...idealRecipient,
     id: 'shelter-small',
-    available_capacity_kg: 10.0, // Only 10kg available < 25kg batch
+    available_capacity_kg: 10.0, // Storage capacity is ignored for community intake
   };
   const evalCapacity = evaluateCandidateFeasibility(standardListing, smallShelter, { now });
-  assert(evalCapacity.feasible === false, 'Shelter with available capacity < batch quantity rejected');
-  assert(
-    evalCapacity.rejection_reasons.some((r) => r.includes('INSUFFICIENT_CAPACITY')),
-    'Rejection reason explicitly cites insufficient capacity'
-  );
+  assert(evalCapacity.feasible === true, 'Shelter is not blocked by storage capacity constraints');
 
   // Case 2.5: No Collection Capability (Scenario D: Self-pickup unavailable)
   const noVehicleShelter = {

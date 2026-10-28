@@ -14,6 +14,7 @@ import {
   Activity,
   FileText,
   UserCheck,
+  CheckCircle2,
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -97,6 +98,18 @@ export default function Sidebar({ activeTab, setActiveTab, session, onLogout }) 
                   <ChevronRight size={14} opacity={0.6} />
                 )}
               </button>
+
+              <button
+                type="button"
+                className={`sidebar-link ${activeTab === 'donor_history' ? 'active' : ''}`}
+                onClick={() => setActiveTab('donor_history')}
+              >
+                <FileText size={17} strokeWidth={2} />
+                <span style={{ flex: 1 }}>History & ESG Impact</span>
+                {activeTab === 'donor_history' && (
+                  <ChevronRight size={14} opacity={0.6} />
+                )}
+              </button>
             </>
           )}
 
@@ -137,8 +150,20 @@ export default function Sidebar({ activeTab, setActiveTab, session, onLogout }) 
                 onClick={() => setActiveTab('shelter_deliveries')}
               >
                 <Truck size={17} strokeWidth={2} />
-                <span style={{ flex: 1 }}>Claimed Deliveries</span>
+                <span style={{ flex: 1 }}>Active Deliveries</span>
                 {activeTab === 'shelter_deliveries' && (
+                  <ChevronRight size={14} opacity={0.6} />
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={`sidebar-link ${activeTab === 'shelter_history' ? 'active' : ''}`}
+                onClick={() => setActiveTab('shelter_history')}
+              >
+                <CheckCircle2 size={17} strokeWidth={2} />
+                <span style={{ flex: 1 }}>Delivery History</span>
+                {activeTab === 'shelter_history' && (
                   <ChevronRight size={14} opacity={0.6} />
                 )}
               </button>

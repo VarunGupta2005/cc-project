@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Utensils, Building2, Bike, ShieldCheck, Activity, Sun, Moon } from 'lucide-react';
+import { Utensils, Building2, Bike, ShieldCheck, Sun, Moon } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import AuthPage from './pages/AuthPage';
 import DonorPage from './pages/DonorPage';
@@ -8,11 +8,9 @@ import RiderPage from './pages/RiderPage';
 import AdminPage from './pages/AdminPage';
 import MasterMapPage from './pages/MasterMapPage';
 import AccountPage from './pages/AccountPage';
-import EvaluatorDrawer from './components/EvaluatorDrawer';
 import TokenModal from './components/TokenModal';
-import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
-import { getStoredSession, clearSession, loginUser, saveSession } from './services/api';
+import { getStoredSession, clearSession } from './services/api';
 
 function getHeaderInfo(tab, session) {
   const role = session?.user?.role || 'DONOR';
@@ -22,31 +20,35 @@ function getHeaderInfo(tab, session) {
       return { title: 'Broadcast Surplus Food', subtitle: 'List prepared surplus meals and notify nearby shelters' };
     case 'donor_active':
       return { title: 'Active Donations & Handover Gate', subtitle: 'Verify driver OTP codes and track physical custody release' };
+    case 'donor_history':
+      return { title: 'Donation History & ESG Scorecard', subtitle: 'Verified redistribution logs, meals distributed, and CO₂ mitigation audits' };
     case 'shelter':
     case 'shelter_radar':
-      return { title: 'Inbound Food Surplus Radar', subtitle: 'Real-time Redis proximity radar for local hunger shelters' };
+      return { title: 'Inbound Food Surplus Radar', subtitle: 'Real-time proximity radar for local hunger shelters' };
     case 'shelter_demand':
       return { title: 'Active Food Demand Registration', subtitle: 'Publish verifiable organizational needs to direct donor redistribution' };
     case 'shelter_deliveries':
-      return { title: 'Claimed Deliveries & Fleet Dispatch', subtitle: 'Assign organization riders and confirm physical receipt' };
+      return { title: 'Active Deliveries & Fleet Dispatch', subtitle: 'Assign organization riders and confirm physical receipt' };
+    case 'shelter_history':
+      return { title: 'Delivery History & Verified Log', subtitle: 'Chronological record of completed surplus deliveries received at your facility' };
     case 'shelter_riders':
       return { title: 'Shelter Courier Fleet Management', subtitle: 'Register and manage authorized couriers for your facility' };
     case 'rider':
       return { title: 'Rider Task Portal', subtitle: 'Live dispatch missions, GPS navigation, and digital OTP custody pass' };
     case 'admin':
     case 'admin_overview':
-      return { title: 'Platform Control Tower', subtitle: 'High-availability cluster health, throughput, and redistribution metrics' };
+      return { title: 'Platform Control Tower', subtitle: 'Redistribution throughput, system health, and logistics metrics' };
     case 'admin_orgs':
       return { title: 'Organization Verification Queue', subtitle: 'Inspect and approve food donor facilities and hunger shelters' };
     case 'admin_map':
     case 'map':
-      return { title: 'City-Wide Live Dispatch Map', subtitle: 'Real-time Redis geospatial pins & PostgreSQL audit ledger' };
+      return { title: 'City-Wide Live Dispatch Map', subtitle: 'Live map of active surplus food pickups and community deliveries' };
     case 'admin_audits':
       return { title: 'Compliance & Custody Ledger', subtitle: 'Cryptographically hashed zero-secret verification audit trail' };
     case 'account':
       return {
         title: role === 'RIDER' ? 'Rider Profile' : role === 'ADMIN' ? 'Platform Operator Profile' : 'Facility Account & Profile',
-        subtitle: 'Manage organization details, durable GPS coordinates, and cloud credentials',
+        subtitle: 'Manage organization details, address, and profile settings',
       };
     default:
       return {
@@ -123,18 +125,6 @@ export default function App() {
     clearSession();
     setSession(null);
     setActiveTab('auth');
-  };
-
-  const handleSwitchUser = async (email, password, defaultTab) => {
-    try {
-      const data = await loginUser(email, password);
-      saveSession(data.token, data.user, data.organization);
-      const newSession = getStoredSession();
-      setSession(newSession);
-      setActiveTab(defaultTab || 'account');
-    } catch (err) {
-      console.error('Role switch failed:', err);
-    }
   };
 
   const handleOpenTokenModal = (token, listingId) => {
@@ -228,11 +218,6 @@ export default function App() {
               )}
             </Button>
 
-            <Badge variant="success" style={{ gap: '0.35rem', padding: '0.25rem 0.65rem' }}>
-              <Activity size={12} strokeWidth={2.5} />
-              <span>3x Replicas Active</span>
-            </Badge>
-
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -263,72 +248,62 @@ export default function App() {
 
         <main className="content-area">
           {/* 1. Producer (Donor) Views */}
-          {role === 'DONOR' && (
-            <>
-              {(activeTab === 'donor' || activeTab === 'donor_broadcast') && (
-                <DonorPage session={session} initialSegment="broadcast" />
-              )}
-              {activeTab === 'donor_active' && (
-                <DonorPage session={session} initialSegment="active" />
-              )}
-            </>
+          {role === 'DONOR' && activeTab !== 'account' && (
+            <DonorPage
+              session={session}
+              initialSegment={
+                activeTab === 'donor_active'
+                  ? 'active'
+                  : activeTab === 'donor_history'
+                  ? 'history'
+                  : 'broadcast'
+              }
+              onSegmentChange={(seg) => {
+                if (seg === 'broadcast') setActiveTab('donor');
+                else if (seg === 'active') setActiveTab('donor_active');
+                else if (seg === 'history') setActiveTab('donor_history');
+              }}
+            />
           )}
 
           {/* 2. Consumer (Shelter) Views */}
-          {role === 'SHELTER' && (
-            <>
-              {(activeTab === 'shelter' || activeTab === 'shelter_radar') && (
-                <ShelterPage
-                  session={session}
-                  initialSegment="radar"
-                  onOpenTokenModal={handleOpenTokenModal}
-                />
-              )}
-              {activeTab === 'shelter_demand' && (
-                <ShelterPage
-                  session={session}
-                  initialSegment="demand"
-                  onOpenTokenModal={handleOpenTokenModal}
-                />
-              )}
-              {activeTab === 'shelter_deliveries' && (
-                <ShelterPage
-                  session={session}
-                  initialSegment="deliveries"
-                  onOpenTokenModal={handleOpenTokenModal}
-                />
-              )}
-              {activeTab === 'shelter_riders' && (
-                <ShelterPage
-                  session={session}
-                  initialSegment="riders"
-                  onOpenTokenModal={handleOpenTokenModal}
-                />
-              )}
-            </>
+          {role === 'SHELTER' && activeTab !== 'account' && (
+            <ShelterPage
+              session={session}
+              initialSegment={
+                activeTab === 'shelter_demand'
+                  ? 'demand'
+                  : activeTab === 'shelter_deliveries'
+                  ? 'deliveries'
+                  : activeTab === 'shelter_history'
+                  ? 'history'
+                  : activeTab === 'shelter_riders'
+                  ? 'riders'
+                  : 'radar'
+              }
+              onOpenTokenModal={handleOpenTokenModal}
+              onSegmentChange={(seg) => {
+                if (seg === 'radar') setActiveTab('shelter_radar');
+                else if (seg === 'demand') setActiveTab('shelter_demand');
+                else if (seg === 'deliveries') setActiveTab('shelter_deliveries');
+                else if (seg === 'history') setActiveTab('shelter_history');
+                else if (seg === 'riders') setActiveTab('shelter_riders');
+              }}
+            />
           )}
 
           {/* 3. Rider Views */}
-          {(role === 'RIDER' || role === 'COURIER') && (
+          {(role === 'RIDER' || role === 'COURIER') && activeTab !== 'account' && (
             <RiderPage session={session} />
           )}
 
           {/* 4. Platform Admin Views */}
-          {role === 'ADMIN' && (
-            <>
-              {(activeTab === 'admin' || activeTab === 'admin_overview') && (
-                <AdminPage session={session} initialTab="overview" />
-              )}
-              {activeTab === 'admin_orgs' && (
-                <AdminPage session={session} initialTab="organizations" />
-              )}
-              {activeTab === 'admin_map' && (
-                <AdminPage session={session} initialTab="map" />
-              )}
-              {activeTab === 'admin_audits' && (
-                <AdminPage session={session} initialTab="audits" />
-              )}
-            </>
+          {role === 'ADMIN' && activeTab !== 'account' && (
+            <AdminPage
+              session={session}
+              initialTab={activeTab}
+              onTabChange={(newTab) => setActiveTab(newTab)}
+            />
           )}
 
           {/* Common Map & Account Views */}
@@ -341,12 +316,6 @@ export default function App() {
           )}
         </main>
       </div>
-
-      {/* Floating Evaluator Role Dock for Demonstrations */}
-      <EvaluatorDrawer
-        session={session}
-        onSwitchUser={handleSwitchUser}
-      />
 
       <TokenModal
         token={tokenModalData?.token}

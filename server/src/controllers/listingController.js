@@ -436,6 +436,26 @@ export async function cancelClaimListing(req, res, next) {
     const audit = auditRes.rows[0];
     const claimedKg = audit?.quantity_claimed_kg ? parseFloat(audit.quantity_claimed_kg) : parseFloat(listing.quantity_kg);
 
+    // Physical Custody Check: If courier has already picked up, claim cancellation is forbidden
+    if (audit?.pickup_time) {
+      return res.status(400).json({
+        error: 'Cannot cancel claim: Courier has already verified pickup and food is currently in transit.',
+      });
+    }
+
+    const allocCheck = await query(
+      `SELECT * FROM allocations 
+       WHERE listing_id = $1 AND (shelter_id = $2 OR $2::uuid IS NULL)
+       ORDER BY created_at DESC LIMIT 1`,
+      [id, shelterId || null]
+    );
+    const currentAlloc = allocCheck.rows[0];
+    if (currentAlloc && (currentAlloc.status === 'IN_TRANSIT' || currentAlloc.status === 'DELIVERED')) {
+      return res.status(400).json({
+        error: `Cannot cancel claim: Parcel is in '${currentAlloc.status}' state and physical custody is locked.`,
+      });
+    }
+
     // Compute biological shelf-life remaining from immutable expires_at
     const now = new Date();
     const expiresAt = new Date(listing.expires_at);
@@ -501,6 +521,22 @@ export async function cancelClaimListing(req, res, next) {
       );
     }
 
+    // Invalidate allocation and active assignments if applicable
+    if (currentAlloc) {
+      await query(
+        `UPDATE allocations 
+         SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $1`,
+        [currentAlloc.id]
+      );
+      await query(
+        `UPDATE delivery_assignments 
+         SET status = 'CANCELLED', notes = 'Claim cancelled by shelter before pickup' 
+         WHERE allocation_id = $1 AND status IN ('ASSIGNED', 'ACCEPTED')`,
+        [currentAlloc.id]
+      );
+    }
+
     // Restore shelter available capacity if known
     const orgToRestore = shelterId || audit?.ngo_id;
     if (orgToRestore) {
@@ -557,19 +593,28 @@ export async function getAllListings(req, res, next) {
     const dbRes = await query(
       `SELECT f.*, u.full_name as donor_name, o.name as claimed_by_name,
               CASE 
-                WHEN $1::uuid IS NOT NULL AND f.claimed_by = $1::uuid THEN h.verification_token
+                WHEN $1::uuid IS NOT NULL AND (f.claimed_by = $1::uuid OR alloc.allocation_id IS NOT NULL) THEN h.verification_token
                 ELSE NULL 
               END as verification_code,
               alloc.allocation_id, alloc.allocated_kg, alloc.allocation_status,
               alloc.assignment_id, alloc.rider_id, alloc.assignment_status,
-              alloc.rider_name, alloc.rider_phone
+              alloc.rider_name, alloc.rider_phone,
+              (
+                SELECT a.allocated_kg 
+                FROM allocations a 
+                WHERE a.listing_id = f.id AND a.shelter_id = f.claimed_by 
+                ORDER BY a.created_at DESC LIMIT 1
+              ) as claimed_portion_kg,
+              alloc_list.all_allocations
        FROM food_listings f
        LEFT JOIN users u ON u.id = f.donor_id
        LEFT JOIN organizations o ON o.id = f.claimed_by
        LEFT JOIN LATERAL (
          SELECT verification_token 
          FROM handover_audits 
-         WHERE listing_id = f.id AND (proof_notes IS NULL OR proof_notes != 'CLAIM_CANCELLED')
+         WHERE listing_id = f.id 
+           AND (ngo_id = $1::uuid OR (ngo_id IS NULL AND f.claimed_by = $1::uuid) OR $1::uuid IS NULL)
+           AND (proof_notes IS NULL OR proof_notes != 'CLAIM_CANCELLED')
          ORDER BY created_at DESC 
          LIMIT 1
        ) h ON true
@@ -580,10 +625,44 @@ export async function getAllListings(req, res, next) {
          FROM allocations a
          LEFT JOIN delivery_assignments d ON d.allocation_id = a.id AND d.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'COMPLETED')
          LEFT JOIN users ru ON ru.id = d.rider_id
-         WHERE a.listing_id = f.id AND (a.shelter_id = f.claimed_by OR a.shelter_id = $1::uuid OR $1::uuid IS NULL)
+         WHERE a.listing_id = f.id AND (a.shelter_id = $1::uuid OR ($1::uuid IS NULL AND a.shelter_id = f.claimed_by))
          ORDER BY a.created_at DESC
          LIMIT 1
        ) alloc ON true
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(
+           json_agg(
+             json_build_object(
+               'id', a.id,
+               'shelter_id', a.shelter_id,
+               'shelter_name', so.name,
+               'allocated_kg', a.allocated_kg,
+               'status', a.status,
+               'created_at', a.created_at,
+               'assignment_id', d.id,
+               'rider_id', d.rider_id,
+               'rider_name', ru.full_name,
+               'rider_phone', ru.phone,
+               'assignment_status', d.status,
+               'pickup_otp', d.pickup_otp,
+               'pickup_time', ha.pickup_time,
+               'delivery_time', ha.delivery_time
+             ) ORDER BY a.created_at ASC
+           ),
+           '[]'::json
+         ) as all_allocations
+         FROM allocations a
+         LEFT JOIN organizations so ON so.id = a.shelter_id
+         LEFT JOIN delivery_assignments d ON d.allocation_id = a.id AND d.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'COMPLETED')
+         LEFT JOIN users ru ON ru.id = d.rider_id
+         LEFT JOIN LATERAL (
+           SELECT pickup_time, delivery_time 
+           FROM handover_audits 
+           WHERE allocation_id = a.id OR (listing_id = a.listing_id AND ngo_id = a.shelter_id)
+           ORDER BY created_at DESC LIMIT 1
+         ) ha ON true
+         WHERE a.listing_id = f.id
+       ) alloc_list ON true
        ORDER BY f.created_at DESC LIMIT 50`,
       [requestingOrgId]
     );

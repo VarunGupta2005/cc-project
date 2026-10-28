@@ -123,7 +123,7 @@ export async function cancelClaimFoodListing(listingId, shelterId, customToken) 
   return data;
 }
 
-export async function verifyPickup(listingId, verificationCode, customToken) {
+export async function verifyPickup(listingId, verificationCode, customToken, allocationId) {
   const token = customToken || localStorage.getItem('rg_token');
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -131,7 +131,11 @@ export async function verifyPickup(listingId, verificationCode, customToken) {
   const res = await fetch(`${API_BASE}/api/deliveries/verify-pickup`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ listing_id: listingId, verification_code: verificationCode }),
+    body: JSON.stringify({
+      listing_id: listingId,
+      verification_code: verificationCode,
+      allocation_id: allocationId,
+    }),
   });
   const data = await res.json();
   if (!res.ok) {
@@ -140,7 +144,7 @@ export async function verifyPickup(listingId, verificationCode, customToken) {
   return data;
 }
 
-export async function confirmDelivery(listingId, notes = 'Verified handover at shelter', customToken) {
+export async function confirmDelivery(listingId, notes = 'Verified handover at shelter', customToken, allocationId) {
   const token = customToken || localStorage.getItem('rg_token');
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -148,7 +152,11 @@ export async function confirmDelivery(listingId, notes = 'Verified handover at s
   const res = await fetch(`${API_BASE}/api/deliveries/confirm-delivery`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ listing_id: listingId, notes }),
+    body: JSON.stringify({
+      listing_id: listingId,
+      allocation_id: allocationId,
+      notes,
+    }),
   });
   const data = await res.json();
   if (!res.ok) {

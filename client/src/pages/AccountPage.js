@@ -4,7 +4,6 @@ import {
   Utensils,
   MapPin,
   Save,
-  Server,
   CheckCircle2,
   Bike,
   ShieldCheck,
@@ -170,10 +169,16 @@ export default function AccountPage({ session, onLogout }) {
 
             <div style={{ backgroundColor: 'var(--secondary)', padding: '0.75rem 0.85rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.25rem' }}>
-                {role === 'DONOR' ? 'Daily Surplus Cap' : role === 'SHELTER' ? 'Storage Capacity' : 'Operational Scope'}
+                Operational Scope
               </div>
               <div style={{ fontSize: '0.85rem', color: roleMeta.color, fontWeight: 700 }}>
-                {org.capacity_kg ? `${org.capacity_kg} kg` : role === 'RIDER' ? 'City-Wide Courier' : 'System Wide'}
+                {role === 'DONOR'
+                  ? (org.capacity_kg ? `${org.capacity_kg} kg / day` : 'Commercial Kitchen')
+                  : role === 'SHELTER'
+                  ? 'Community Food Intake'
+                  : role === 'RIDER'
+                  ? 'City-Wide Courier'
+                  : 'Platform Operations'}
               </div>
             </div>
 
@@ -208,9 +213,9 @@ export default function AccountPage({ session, onLogout }) {
                   <MapPin size={18} />
                 </div>
                 <div>
-                  <CardTitle>Physical Location & Durable Coordinates</CardTitle>
+                  <CardTitle>Physical Location & Entrance Coordinates</CardTitle>
                   <CardDescription>
-                    Drag the pin to adjust your facility entrance across PostgreSQL and the Redis spatial index.
+                    Drag the pin to adjust your facility entrance for dispatch and pickups.
                   </CardDescription>
                 </div>
               </div>
@@ -242,7 +247,7 @@ export default function AccountPage({ session, onLogout }) {
                 gap: '0.4rem',
               }}>
                 <CheckCircle2 size={15} />
-                <span>Location pin updated and saved to PostgreSQL & Redis spatial engine!</span>
+                <span>Location pin updated successfully!</span>
               </div>
             )}
 
@@ -285,56 +290,6 @@ export default function AccountPage({ session, onLogout }) {
           </CardContent>
         </Card>
       )}
-
-      {/* Cloud Security Info Card */}
-      <Card>
-        <CardHeader>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: 'var(--radius)',
-              backgroundColor: 'var(--secondary)',
-              color: 'var(--foreground)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Server size={18} />
-            </div>
-            <div>
-              <CardTitle>Cloud Computing Architecture & Cluster Specs</CardTitle>
-              <CardDescription>
-                High-availability production cluster deployment details
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem' }}>
-            <div style={{ backgroundColor: 'var(--secondary)', padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ color: 'var(--muted-foreground)', fontSize: '0.7rem', fontWeight: 600 }}>Load Balancer</div>
-              <div style={{ color: '#059669', fontWeight: 700, fontSize: '0.84rem', marginTop: '0.15rem' }}>✓ Nginx (Port 80)</div>
-            </div>
-
-            <div style={{ backgroundColor: 'var(--secondary)', padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ color: 'var(--muted-foreground)', fontSize: '0.7rem', fontWeight: 600 }}>API Microservices</div>
-              <div style={{ color: '#059669', fontWeight: 700, fontSize: '0.84rem', marginTop: '0.15rem' }}>✓ 3x Replicas (Port 5000)</div>
-            </div>
-
-            <div style={{ backgroundColor: 'var(--secondary)', padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ color: 'var(--muted-foreground)', fontSize: '0.7rem', fontWeight: 600 }}>Session Auth</div>
-              <div style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '0.84rem', marginTop: '0.15rem' }}>HMAC-SHA256 JWT</div>
-            </div>
-
-            <div style={{ backgroundColor: 'var(--secondary)', padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ color: 'var(--muted-foreground)', fontSize: '0.7rem', fontWeight: 600 }}>Spatial Index</div>
-              <div style={{ color: '#d97706', fontWeight: 700, fontSize: '0.84rem', marginTop: '0.15rem' }}>Redis 7 In-Memory GEO</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

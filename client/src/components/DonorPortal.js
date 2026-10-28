@@ -30,7 +30,7 @@ export default function DonorPortal({ onListingCreated }) {
       });
 
       setSuccessMsg(
-        `Surplus batch listed! Redis dual-write complete. ${data.nearby_shelters_alerted} nearby shelters alerted via WebSockets.`
+        `Surplus batch listed! ${data.nearby_shelters_alerted} nearby shelters alerted.`
       );
       if (onListingCreated) onListingCreated(data.listing);
     } catch (err) {
@@ -44,7 +44,7 @@ export default function DonorPortal({ onListingCreated }) {
     <div className="card">
       <h2 className="card-title">🍲 Institutional Donor Intake Portal</h2>
       <p className="card-subtitle">
-        Submit surplus food. Dual-writes to PostgreSQL and Redis In-Memory Geo-index with TTL countdown.
+        Submit prepared surplus food batches for local shelters to claim.
       </p>
 
       {successMsg && (

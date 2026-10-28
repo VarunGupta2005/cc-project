@@ -23,8 +23,25 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 
-export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState('overview');
+function normalizeTab(tab) {
+  if (!tab) return 'overview';
+  if (tab === 'admin_overview' || tab === 'admin' || tab === 'overview') return 'overview';
+  if (tab === 'admin_orgs' || tab === 'organizations' || tab === 'verification') return 'verification';
+  if (tab === 'admin_map' || tab === 'map' || tab === 'dispatch-map') return 'dispatch-map';
+  if (tab === 'admin_audits' || tab === 'audits') return 'audits';
+  return 'overview';
+}
+
+function toAppTab(tab) {
+  if (tab === 'overview') return 'admin_overview';
+  if (tab === 'verification') return 'admin_orgs';
+  if (tab === 'dispatch-map') return 'admin_map';
+  if (tab === 'audits') return 'admin_audits';
+  return 'admin_overview';
+}
+
+export default function AdminPage({ initialTab = 'overview', onTabChange }) {
+  const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
   const [metrics, setMetrics] = useState(null);
   const [organizations, setOrganizations] = useState([]);
   const [audits, setAudits] = useState([]);
@@ -32,6 +49,19 @@ export default function AdminPage() {
   const [orgFilter, setOrgFilter] = useState('ALL');
   const [actionLoading, setActionLoading] = useState(null);
   const [statusMsg, setStatusMsg] = useState(null);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(normalizeTab(initialTab));
+    }
+  }, [initialTab]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    if (onTabChange) {
+      onTabChange(toAppTab(newTab));
+    }
+  };
 
   const loadAllAdminData = useCallback(async () => {
     try {
@@ -128,7 +158,7 @@ export default function AdminPage() {
       )}
 
       {/* Admin Segmented Portals */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <TabsList>
             <TabsTrigger value="overview">
@@ -292,7 +322,7 @@ export default function AdminPage() {
                         <th style={{ padding: '0.65rem 0.5rem' }}>Role / Type</th>
                         <th style={{ padding: '0.65rem 0.5rem' }}>Contact</th>
                         <th style={{ padding: '0.65rem 0.5rem' }}>Location Pin</th>
-                        <th style={{ padding: '0.65rem 0.5rem' }}>Capacity</th>
+                        <th style={{ padding: '0.65rem 0.5rem' }}>Scope / Capacity</th>
                         <th style={{ padding: '0.65rem 0.5rem' }}>Audit Status</th>
                         <th style={{ padding: '0.65rem 0.5rem', textAlign: 'right' }}>Actions</th>
                       </tr>
@@ -318,7 +348,7 @@ export default function AdminPage() {
                               {parseFloat(org.latitude).toFixed(4)}, {parseFloat(org.longitude).toFixed(4)}
                             </td>
                             <td style={{ padding: '0.65rem 0.5rem', fontWeight: 600, color: 'var(--foreground)' }}>
-                              {org.capacity_kg} kg
+                              {org.org_type === 'SHELTER' ? 'Community Intake' : `${org.capacity_kg || 100} kg/day`}
                             </td>
                             <td style={{ padding: '0.65rem 0.5rem' }}>
                               {isVerified && <Badge variant="success">Verified</Badge>}

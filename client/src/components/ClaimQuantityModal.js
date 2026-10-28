@@ -10,7 +10,6 @@ export default function ClaimQuantityModal({
   onConfirmClaim,
   claiming = false,
   claimError = null,
-  shelterCapacityKg = 100,
 }) {
   const maxAvailable = listing
     ? parseFloat(listing.quantity_remaining !== undefined ? listing.quantity_remaining : listing.quantity_kg)
@@ -157,7 +156,7 @@ export default function ClaimQuantityModal({
                 Claim Partial Portion
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                Split based on shelter capacity
+                Split based on immediate headcount needs
               </div>
             </div>
           </div>
