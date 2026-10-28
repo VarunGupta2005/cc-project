@@ -1,5 +1,8 @@
 // Default API URL points to the Nginx Load Balancer on port 80 (or localhost:5000 in dev)
-export const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost';
+export const API_BASE = process.env.REACT_APP_API_URL || 
+  (typeof window !== 'undefined' && window.location.port === '3000' 
+    ? 'http://localhost' 
+    : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost'));
 
 export async function loginUser(email, password) {
   const res = await fetch(`${API_BASE}/api/auth/login`, {

@@ -68,6 +68,16 @@ export default function LocationPickerMap({
   const [resolvedAddress, setResolvedAddress] = useState('');
   const [geocoding, setGeocoding] = useState(false);
 
+  // Sync internal position and fly map when initial coordinates change from props
+  useEffect(() => {
+    const pLat = parseFloat(initialLat);
+    const pLng = parseFloat(initialLng);
+    if (!isNaN(pLat) && !isNaN(pLng)) {
+      setPosition({ lat: pLat, lng: pLng });
+      setFlyCenter({ lat: pLat, lng: pLng });
+    }
+  }, [initialLat, initialLng]);
+
   // Reverse geocode whenever position changes (debounced)
   const timerRef = useRef(null);
   const handlePositionChange = (newPos) => {

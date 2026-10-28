@@ -131,6 +131,15 @@ export default function App() {
     setTokenModalData({ token, listingId });
   };
 
+  const handleTabChange = (newTab) => {
+    // Re-sync session state with latest localStorage in case profile/coordinates updated
+    const fresh = getStoredSession();
+    if (fresh) {
+      setSession(fresh);
+    }
+    setActiveTab(newTab);
+  };
+
   const header = getHeaderInfo(activeTab, session);
   const role = session?.user?.role;
 
@@ -175,7 +184,7 @@ export default function App() {
       {/* Sleek Vertical Left Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         session={session}
         onLogout={handleLogout}
       />
@@ -312,6 +321,7 @@ export default function App() {
             <AccountPage
               session={session}
               onLogout={handleLogout}
+              onUpdateSession={(updatedSession) => setSession(updatedSession)}
             />
           )}
         </main>

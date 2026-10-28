@@ -144,6 +144,21 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     radiusKmRef.current = radiusKm;
   }, [radarLat, radarLng, radiusKm]);
 
+  // Synchronize radar center whenever session organization profile is updated in Settings
+  useEffect(() => {
+    if (session?.org?.latitude && session?.org?.longitude) {
+      const parsedLat = parseFloat(session.org.latitude);
+      const parsedLng = parseFloat(session.org.longitude);
+      if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+        setRadarLat((prev) => (prev !== parsedLat ? parsedLat : prev));
+        setRadarLng((prev) => (prev !== parsedLng ? parsedLng : prev));
+        if (session.org.name) {
+          setRadarAddress(session.org.name);
+        }
+      }
+    }
+  }, [session?.org?.latitude, session?.org?.longitude, session?.org?.name]);
+
   useEffect(() => {
     if (initialSegment) {
       setActiveSegment(initialSegment);

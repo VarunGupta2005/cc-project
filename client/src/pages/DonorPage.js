@@ -64,6 +64,17 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
     }
   }, [initialSegment]);
 
+  // Synchronize facility coordinates whenever session organization profile is updated in Settings
+  useEffect(() => {
+    if (session?.org?.latitude && session?.org?.longitude) {
+      setLat(session.org.latitude.toString());
+      setLng(session.org.longitude.toString());
+      if (session.org.name) {
+        setPickupAddress(`${session.org.name}, Banquet Hall`);
+      }
+    }
+  }, [session?.org?.latitude, session?.org?.longitude, session?.org?.name]);
+
   const loadMyListings = async () => {
     try {
       const data = await fetchAllListings(session?.token);

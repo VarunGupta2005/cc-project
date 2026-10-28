@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Building2,
   Utensils,
@@ -15,7 +15,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { updateOrganizationProfile } from '../services/api';
 
-export default function AccountPage({ session, onLogout }) {
+export default function AccountPage({ session, onLogout, onUpdateSession }) {
   const role = session?.user?.role || 'DONOR';
   const org = session?.org || {};
   const user = session?.user || {};
@@ -70,28 +70,62 @@ export default function AccountPage({ session, onLogout }) {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
-  const handleSaveLocation = async () => {
-    if (!org.id) {
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
-      return;
+  // Sync internal state if organization prop changes
+  useEffect(() => {
+    if (org.latitude && org.longitude) {
+      const pLat = parseFloat(org.latitude);
+      const pLng = parseFloat(org.longitude);
+      if (!isNaN(pLat) && !isNaN(pLng)) {
+        setLat(pLat);
+        setLng(pLng);
+      }
     }
+    if (org.name) {
+      setAddress(org.name);
+    }
+  }, [org.latitude, org.longitude, org.name]);
 
+  const handleSaveLocation = async () => {
     setSaving(true);
     setSaveError(null);
     try {
-      await updateOrganizationProfile(org.id, {
-        latitude: lat,
-        longitude: lng,
-        name: address || org.name,
-      });
+      let updatedOrg = null;
+      if (org.id) {
+        const updatePayload = {
+          latitude: lat,
+          longitude: lng,
+        };
+        if (address) {
+          updatePayload.name = address;
+        }
+        const res = await updateOrganizationProfile(org.id, updatePayload);
+        updatedOrg = res?.organization;
+      }
 
       // Update localStorage session org coordinates
       const storedOrg = JSON.parse(localStorage.getItem('rg_org') || '{}');
       storedOrg.latitude = lat;
       storedOrg.longitude = lng;
       if (address) storedOrg.name = address;
+      if (updatedOrg) {
+        Object.assign(storedOrg, updatedOrg);
+      }
       localStorage.setItem('rg_org', JSON.stringify(storedOrg));
+
+      const updatedSession = {
+        ...session,
+        org: {
+          ...(session?.org || {}),
+          ...storedOrg,
+          latitude: lat,
+          longitude: lng,
+          ...(address ? { name: address } : {}),
+        },
+      };
+
+      if (onUpdateSession) {
+        onUpdateSession(updatedSession);
+      }
 
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
