@@ -242,18 +242,8 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
             <CardContent>
               {statusMsg && (
                 <div
-                  style={{
-                    backgroundColor: statusMsg.type === 'success' ? 'var(--success-bg)' : 'var(--destructive-bg)',
-                    border: `1px solid ${statusMsg.type === 'success' ? 'var(--success-border)' : '#fecaca'}`,
-                    padding: '0.85rem 1rem',
-                    borderRadius: 'var(--radius)',
-                    color: statusMsg.type === 'success' ? '#065f46' : '#991b1b',
-                    marginBottom: '1.25rem',
-                    fontSize: '0.84rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                  }}
+                  className={`alert-box ${statusMsg.type === 'success' ? 'alert-box--success' : 'alert-box--error'}`}
+                  style={{ marginBottom: '1.25rem' }}
                 >
                   {statusMsg.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
                   <span style={{ fontWeight: 500 }}>{statusMsg.text}</span>
@@ -669,7 +659,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                                   }}
                                 >
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontWeight: 600, fontSize: '0.82rem', color: idx === 0 ? '#1d4ed8' : 'var(--foreground)' }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.82rem', color: idx === 0 ? 'var(--primary)' : 'var(--foreground)' }}>
                                       #{idx + 1} {rec.recipient_name}
                                     </span>
                                     <Badge variant={idx === 0 ? 'info' : 'secondary'} style={{ fontSize: '0.68rem' }}>
@@ -690,7 +680,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                     {/* PHYSICAL HANDOVER VERIFICATION GATE (When status is CLAIMED) */}
                     {isClaimed && (
                       <div className="otp-pass-card" style={{ marginTop: '0.5rem', textAlign: 'left' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#1d4ed8', fontWeight: 600, fontSize: '0.84rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 600, fontSize: '0.84rem' }}>
                           <ShieldCheck size={16} />
                           <span>Driver Physical Handover Gate</span>
                         </div>
@@ -699,15 +689,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                         </p>
 
                         {pickupMsg[item.id]?.error && (
-                          <div style={{
-                            backgroundColor: 'var(--destructive-bg)',
-                            border: '1px solid #fecaca',
-                            color: '#b91c1c',
-                            padding: '0.5rem 0.75rem',
-                            borderRadius: 'var(--radius-sm)',
-                            fontSize: '0.78rem',
-                            marginBottom: '0.65rem'
-                          }}>
+                          <div className="alert-box alert-box--error" style={{ padding: '0.5rem 0.75rem', fontSize: '0.78rem', marginBottom: '0.65rem' }}>
                             {pickupMsg[item.id].error}
                           </div>
                         )}
@@ -743,34 +725,14 @@ export default function DonorPage({ session, initialSegment = 'broadcast' }) {
                     )}
 
                     {isInTransit && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        fontSize: '0.8125rem',
-                        color: '#1d4ed8',
-                        backgroundColor: '#eff6ff',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid #bfdbfe'
-                      }}>
+                      <div className="alert-box alert-box--info" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', marginBottom: 0 }}>
                         <Truck size={14} />
                         <span>Courier verified! Food is currently in transit to recipient shelter.</span>
                       </div>
                     )}
 
                     {isDelivered && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        fontSize: '0.8125rem',
-                        color: '#065f46',
-                        backgroundColor: '#ecfdf5',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid #a7f3d0'
-                      }}>
+                      <div className="alert-box alert-box--success" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', marginBottom: 0 }}>
                         <CheckCircle2 size={14} />
                         <span>Delivery complete and safely recorded in PostgreSQL compliance audit trail.</span>
                       </div>

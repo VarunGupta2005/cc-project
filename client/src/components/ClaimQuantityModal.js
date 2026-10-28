@@ -82,20 +82,7 @@ export default function ClaimQuantityModal({
 
         {/* Error notification if priority locked or conflict */}
         {claimError && (
-          <div
-            style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid #fca5a5',
-              padding: '0.65rem 0.85rem',
-              borderRadius: 'var(--radius)',
-              color: '#991b1b',
-              marginBottom: '1rem',
-              fontSize: '0.8rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-            }}
-          >
+          <div className="alert-box alert-box--error" style={{ fontSize: '0.8rem', marginBottom: '1rem' }}>
             <AlertCircle size={16} />
             <span>{claimError}</span>
           </div>
@@ -115,12 +102,12 @@ export default function ClaimQuantityModal({
             <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--muted-foreground)', fontWeight: 700 }}>
               Currently Available
             </div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#16a34a' }}>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--success-text)' }}>
               {maxAvailable} <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>kg</span>
             </div>
           </div>
           {listing.quantity_remaining !== undefined && listing.quantity_remaining < listing.quantity_kg && (
-            <Badge variant="outline" style={{ color: '#16a34a', borderColor: '#16a34a' }}>
+            <Badge variant="outline" style={{ color: 'var(--success-text)', borderColor: 'var(--success-border)' }}>
               Previously Split Batch
             </Badge>
           )}

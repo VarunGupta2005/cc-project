@@ -415,18 +415,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
           </Card>
 
           {claimError && (
-            <div style={{
-              backgroundColor: 'var(--destructive-bg)',
-              border: '1px solid #fecaca',
-              color: '#b91c1c',
-              padding: '0.75rem 1rem',
-              borderRadius: 'var(--radius)',
-              marginBottom: '1rem',
-              fontSize: '0.84rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}>
+            <div className="alert-box alert-box--error" style={{ marginBottom: '1rem' }}>
               <AlertCircle size={16} />
               <span><b>Claim Conflict:</b> {claimError}</span>
             </div>
@@ -435,12 +424,12 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
           {/* Diagnostic Banner if batches exist outside radius */}
           {availableListings.length === 0 && allAvailableListings.length > 0 && (
             <Card style={{
-              backgroundColor: 'var(--accent)',
-              borderColor: '#bfdbfe',
+              backgroundColor: 'var(--secondary)',
+              borderColor: 'var(--border)',
               padding: '1rem 1.25rem',
               marginBottom: '1.25rem'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#1d4ed8', fontWeight: 600, fontSize: '0.875rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--foreground)', fontWeight: 600, fontSize: '0.875rem' }}>
                 <Sparkles size={16} />
                 <span>{allAvailableListings.length} Surplus Food Batch(es) Active in Cluster</span>
               </div>
@@ -547,12 +536,12 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                         {/* Cascading Priority Tier Badges */}
                         {isMyPriority1 && item.current_tier === 1 && (
-                          <Badge variant="success" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#047857', border: '1px solid #10b981', fontSize: '0.72rem' }}>
+                          <Badge variant="success" style={{ fontSize: '0.72rem' }}>
                             ⭐ Priority Match for You ({lockMinsLeft}m window)
                           </Badge>
                         )}
                         {isLocked && (
-                          <Badge variant="destructive" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#991b1b', border: '1px solid #f87171', fontSize: '0.72rem' }}>
+                          <Badge variant="destructive" style={{ fontSize: '0.72rem' }}>
                             🔒 Priority Reserved ({lockMinsLeft}m left)
                           </Badge>
                         )}
@@ -591,14 +580,14 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                         <div style={{
                           marginTop: '0.4rem',
                           padding: '0.45rem 0.65rem',
-                          backgroundColor: isFeasible ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                          backgroundColor: isFeasible ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
                           borderRadius: 'var(--radius)',
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
                           fontSize: '0.74rem'
                         }}>
-                          <span style={{ color: isFeasible ? '#065f46' : '#991b1b', fontWeight: 600 }}>
+                          <span style={{ color: isFeasible ? 'var(--success-text)' : 'var(--destructive-text)', fontWeight: 600 }}>
                             {isFeasible ? '✓ Feasible Self-Pickup' : '⚠ Tight Deadline Buffer'}
                           </span>
                           <span style={{ color: 'var(--muted-foreground)' }}>
@@ -610,7 +599,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
 
                     <div className="batch-card-footer">
                       <div>
-                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#16a34a' }}>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success-text)' }}>
                           {remKg} kg
                         </span>
                         {isPartial ? (
@@ -623,7 +612,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                           </span>
                         )}
                         {isPartial && (
-                          <Badge variant="outline" style={{ marginLeft: '0.45rem', color: '#16a34a', borderColor: '#16a34a', fontSize: '0.68rem' }}>
+                          <Badge variant="outline" style={{ marginLeft: '0.45rem', color: 'var(--success-text)', borderColor: 'var(--success-border)', fontSize: '0.68rem' }}>
                             PARTIALLY CLAIMED
                           </Badge>
                         )}
@@ -676,18 +665,8 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
             <CardContent>
               {reqMsg && (
                 <div
-                  style={{
-                    backgroundColor: reqMsg.type === 'success' ? 'var(--success-bg)' : 'var(--destructive-bg)',
-                    border: `1px solid ${reqMsg.type === 'success' ? 'var(--success-border)' : '#fecaca'}`,
-                    padding: '0.75rem 1rem',
-                    borderRadius: 'var(--radius)',
-                    color: reqMsg.type === 'success' ? '#065f46' : '#991b1b',
-                    marginBottom: '1rem',
-                    fontSize: '0.84rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                  }}
+                  className={`alert-box ${reqMsg.type === 'success' ? 'alert-box--success' : 'alert-box--error'}`}
+                  style={{ marginBottom: '1rem' }}
                 >
                   {reqMsg.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
                   <span>{reqMsg.text}</span>
@@ -1037,9 +1016,9 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                           size="sm"
                           onClick={() => handleOpenCancelModal(delivery)}
                           style={{
-                            color: '#dc2626',
-                            borderColor: '#fca5a5',
-                            backgroundColor: '#ffffff',
+                            color: 'var(--destructive-text)',
+                            borderColor: 'var(--destructive-border)',
+                            backgroundColor: 'var(--card)',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.35rem',
@@ -1066,7 +1045,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                           alignItems: 'center',
                           gap: '0.45rem',
                           fontSize: '0.8125rem',
-                          color: '#60a5fa',
+                          color: 'var(--foreground)',
                           fontWeight: 600
                         }}>
                           <Truck size={15} />
@@ -1085,17 +1064,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                     )}
 
                     {isDelivered && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        fontSize: '0.8125rem',
-                        color: '#34d399',
-                        backgroundColor: 'var(--success-bg)',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--success-border)'
-                      }}>
+                      <div className="alert-box alert-box--success" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', marginBottom: 0 }}>
                         <CheckCircle2 size={14} />
                         <span>Delivery complete and verified in PostgreSQL audit ledger.</span>
                       </div>

@@ -146,7 +146,7 @@ export default function Sidebar({ activeTab, setActiveTab, session, onLogout }) 
           size="sm"
           onClick={onLogout}
           title="Sign out of RescueGrid"
-          style={{ width: '100%', justifyContent: 'flex-start', color: '#64748b' }}
+          style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--muted-foreground)' }}
         >
           <LogOut size={14} />
           <span>Sign Out</span>

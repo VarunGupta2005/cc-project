@@ -136,18 +136,7 @@ export default function AuthPage({ onLoginSuccess }) {
           </div>
 
           {errorMsg && (
-            <div style={{
-              backgroundColor: 'var(--destructive-bg)',
-              border: '1px solid #fecaca',
-              color: '#b91c1c',
-              padding: '0.65rem 0.85rem',
-              borderRadius: 'var(--radius)',
-              marginBottom: '1rem',
-              fontSize: '0.8125rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-            }}>
+            <div className="alert-box alert-box--error" style={{ marginBottom: '1rem', fontSize: '0.8125rem' }}>
               <AlertCircle size={15} />
               <span>{errorMsg}</span>
             </div>
@@ -172,13 +161,13 @@ export default function AuthPage({ onLoginSuccess }) {
                       padding: '0.75rem',
                       borderRadius: 'var(--radius)',
                       border: `2px solid ${role === 'DONOR' ? 'var(--primary)' : 'var(--border)'}`,
-                      backgroundColor: role === 'DONOR' ? 'var(--accent)' : 'var(--card)',
+                      backgroundColor: role === 'DONOR' ? 'var(--secondary)' : 'var(--card)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <Utensils size={18} color={role === 'DONOR' ? '#2563eb' : '#64748b'} />
-                    <div style={{ fontWeight: 600, fontSize: '0.84rem', color: role === 'DONOR' ? '#1d4ed8' : 'var(--foreground)', marginTop: '0.35rem' }}>
+                    <Utensils size={18} color={role === 'DONOR' ? 'var(--primary)' : 'var(--muted-foreground)'} />
+                    <div style={{ fontWeight: 600, fontSize: '0.84rem', color: role === 'DONOR' ? 'var(--primary)' : 'var(--foreground)', marginTop: '0.35rem' }}>
                       Food Producer
                     </div>
                     <div style={{ fontSize: '0.6875rem', color: 'var(--muted-foreground)', marginTop: '0.1rem', lineHeight: '1.3' }}>
@@ -195,14 +184,14 @@ export default function AuthPage({ onLoginSuccess }) {
                     style={{
                       padding: '0.75rem',
                       borderRadius: 'var(--radius)',
-                      border: `2px solid ${role === 'SHELTER' ? '#10b981' : 'var(--border)'}`,
-                      backgroundColor: role === 'SHELTER' ? 'var(--success-bg)' : 'var(--card)',
+                      border: `2px solid ${role === 'SHELTER' ? 'var(--primary)' : 'var(--border)'}`,
+                      backgroundColor: role === 'SHELTER' ? 'var(--secondary)' : 'var(--card)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <Building2 size={18} color={role === 'SHELTER' ? '#059669' : '#64748b'} />
-                    <div style={{ fontWeight: 600, fontSize: '0.84rem', color: role === 'SHELTER' ? '#065f46' : 'var(--foreground)', marginTop: '0.35rem' }}>
+                    <Building2 size={18} color={role === 'SHELTER' ? 'var(--primary)' : 'var(--muted-foreground)'} />
+                    <div style={{ fontWeight: 600, fontSize: '0.84rem', color: role === 'SHELTER' ? 'var(--primary)' : 'var(--foreground)', marginTop: '0.35rem' }}>
                       Food Consumer
                     </div>
                     <div style={{ fontSize: '0.6875rem', color: 'var(--muted-foreground)', marginTop: '0.1rem', lineHeight: '1.3' }}>
@@ -268,7 +257,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     onClick={() => handleQuickLogin('donor@grandhotel.com')}
                     style={{ fontSize: '0.75rem', justifyContent: 'flex-start' }}
                   >
-                    <Utensils size={13} color="#2563eb" />
+                    <Utensils size={13} />
                     <span>Grand Palace (Donor)</span>
                   </Button>
 
@@ -278,7 +267,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     onClick={() => handleQuickLogin('director@hopehaven.org')}
                     style={{ fontSize: '0.75rem', justifyContent: 'flex-start' }}
                   >
-                    <Building2 size={13} color="#059669" />
+                    <Building2 size={13} />
                     <span>Hope Haven (Shelter)</span>
                   </Button>
                 </div>

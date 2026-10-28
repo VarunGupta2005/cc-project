@@ -46,25 +46,15 @@ export default function CancelClaimModal({
         </div>
 
         {error && (
-          <div
-            style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid #fca5a5',
-              padding: '0.65rem 0.85rem',
-              borderRadius: 'var(--radius)',
-              color: '#991b1b',
-              marginBottom: '1rem',
-              fontSize: '0.8rem',
-            }}
-          >
+          <div className="alert-box alert-box--error" style={{ fontSize: '0.8rem', marginBottom: '1rem' }}>
             {error}
           </div>
         )}
 
         {/* Biological Timer Preservation Notice */}
         <div style={{
-          backgroundColor: 'rgba(59, 130, 246, 0.08)',
-          border: '1px solid rgba(59, 130, 246, 0.25)',
+          backgroundColor: 'var(--secondary)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius)',
           padding: '0.85rem 1rem',
           marginBottom: '1.25rem',
@@ -72,7 +62,7 @@ export default function CancelClaimModal({
           color: 'var(--foreground)',
           lineHeight: '1.45',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, color: '#1d4ed8', marginBottom: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.35rem' }}>
             <Clock size={15} />
             <span>Biological Countdown Preservation</span>
           </div>

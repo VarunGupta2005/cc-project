@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RescueGrid — Dark Mode Visual Palette Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    /* Theme Definitions */
+    :root {
+      /* Default to Supabase Emerald */
+      --bg: #121212;
+      --card-bg: #171717;
+      --border: #292929;
+      --border-subtle: #202020;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --primary-text: #ffffff;
+      --accent-bg: rgba(16, 185, 129, 0.12);
+      --accent-border: rgba(16, 185, 129, 0.35);
+      --badge-success-bg: rgba(16, 185, 129, 0.15);
+      --badge-success-text: #34d399;
+      --badge-warning-bg: rgba(245, 158, 11, 0.15);
+      --badge-warning-text: #fbbf24;
+      --badge-danger-bg: rgba(239, 68, 68, 0.15);
+      --badge-danger-text: #f87171;
+      --font-family: 'Inter', sans-serif;
+    }
+
+    /* Option 1: Supabase Emerald */
+    .theme-supabase {
+      --bg: #121212;
+      --card-bg: #171717;
+      --border: #292929;
+      --border-subtle: #202020;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --primary-text: #ffffff;
+      --accent-bg: rgba(16, 185, 129, 0.12);
+      --accent-border: rgba(16, 185, 129, 0.35);
+      --badge-success-bg: rgba(16, 185, 129, 0.15);
+      --badge-success-text: #34d399;
+      --badge-warning-bg: rgba(245, 158, 11, 0.15);
+      --badge-warning-text: #fbbf24;
+      --badge-danger-bg: rgba(239, 68, 68, 0.15);
+      --badge-danger-text: #f87171;
+    }
+
+    /* Option 2: Vercel / Linear Obsidian */
+    .theme-vercel {
+      --bg: #000000;
+      --card-bg: #111111;
+      --border: #262626;
+      --border-subtle: #1a1a1a;
+      --text-main: #ffffff;
+      --text-muted: #888888;
+      --primary: #ffffff;
+      --primary-hover: #e5e5e5;
+      --primary-text: #000000;
+      --accent-bg: #1f1f1f;
+      --accent-border: #333333;
+      --badge-success-bg: rgba(34, 197, 94, 0.15);
+      --badge-success-text: #4ade80;
+      --badge-warning-bg: rgba(234, 179, 8, 0.15);
+      --badge-warning-text: #facc15;
+      --badge-danger-bg: rgba(239, 68, 68, 0.15);
+      --badge-danger-text: #f87171;
+    }
+
+    /* Option 3: Northern Lights (Aurora Cyan & Emerald) */
+    .theme-northern {
+      --bg: #13171f;
+      --card-bg: #1c222d;
+      --border: #2c3647;
+      --border-subtle: #232b38;
+      --text-main: #e2e8f0;
+      --text-muted: #8896ab;
+      --primary: #06b6d4;
+      --primary-hover: #0891b2;
+      --primary-text: #ffffff;
+      --accent-bg: rgba(6, 182, 212, 0.12);
+      --accent-border: rgba(6, 182, 212, 0.35);
+      --badge-success-bg: rgba(34, 197, 94, 0.15);
+      --badge-success-text: #34d399;
+      --badge-warning-bg: rgba(245, 158, 11, 0.15);
+      --badge-warning-text: #fbbf24;
+      --badge-danger-bg: rgba(239, 68, 68, 0.15);
+      --badge-danger-text: #f87171;
+    }
+
+    /* Option 4: Graphite / Zinc Minimal */
+    .theme-graphite {
+      --bg: #09090b;
+      --card-bg: #141416;
+      --border: #27272a;
+      --border-subtle: #1c1c1f;
+      --text-main: #fafafa;
+      --text-muted: #a1a1aa;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-text: #ffffff;
+      --accent-bg: rgba(59, 130, 246, 0.12);
+      --accent-border: rgba(59, 130, 246, 0.3);
+      --badge-success-bg: rgba(16, 185, 129, 0.15);
+      --badge-success-text: #34d399;
+      --badge-warning-bg: rgba(245, 158, 11, 0.15);
+      --badge-warning-text: #fbbf24;
+      --badge-danger-bg: rgba(239, 68, 68, 0.15);
+      --badge-danger-text: #f87171;
+    }
+
+    /* Option 5: Catppuccin Mocha */
+    .theme-catppuccin {
+      --bg: #181825;
+      --card-bg: #1e1e2e;
+      --border: #313244;
+      --border-subtle: #262738;
+      --text-main: #cdd6f4;
+      --text-muted: #a6adc8;
+      --primary: #cba6f7;
+      --primary-hover: #b48bf2;
+      --primary-text: #1e1e2e;
+      --accent-bg: rgba(203, 166, 247, 0.12);
+      --accent-border: rgba(203, 166, 247, 0.35);
+      --badge-success-bg: rgba(166, 227, 161, 0.18);
+      --badge-success-text: #a6e3a1;
+      --badge-warning-bg: rgba(250, 179, 135, 0.18);
+      --badge-warning-text: #fab387;
+      --badge-danger-bg: rgba(243, 139, 168, 0.18);
+      --badge-danger-text: #f38ba8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      line-height: 1.5;
+      padding-bottom: 4rem;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Top Switcher Bar */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .top-bar-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .theme-nav {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+    }
+
+    .theme-tab-btn {
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: 0.825rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .theme-tab-btn:hover {
+      border-color: var(--primary);
+    }
+
+    .theme-tab-btn.active {
+      background: var(--primary);
+      color: var(--primary-text);
+      border-color: var(--primary);
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.3);
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 2rem auto 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    /* UI Mockup Card */
+    .preview-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-success { background: var(--badge-success-bg); color: var(--badge-success-text); border: 1px solid var(--badge-success-text); }
+    .badge-warning { background: var(--badge-warning-bg); color: var(--badge-warning-text); border: 1px solid var(--badge-warning-text); }
+    .badge-danger  { background: var(--badge-danger-bg);  color: var(--badge-danger-text);  border: 1px solid var(--badge-danger-text); }
+    .badge-neutral { background: var(--border-subtle); color: var(--text-muted); border: 1px solid var(--border); }
+
+    .btn {
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      font-size: 0.825rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-text);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-main);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      background: var(--border-subtle);
+    }
+
+    .otp-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      color: var(--text-main);
+      background: var(--bg);
+      border: 1.5px dashed var(--border);
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      display: inline-block;
+      margin: 0.75rem 0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body id="themeBody" class="theme-supabase">
+
+  <!-- Interactive Switcher Header -->
+  <div class="top-bar">
+    <div class="top-bar-inner">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h2 style="font-size: 1.15rem; font-weight: 800;">🎨 RescueGrid Dark Theme Visual Lab</h2>
+          <p style="font-size: 0.78rem; color: var(--text-muted);">
+            Click each tab below to instantly apply and preview how buttons, cards, badges, and food batch listings look.
+          </p>
+        </div>
+        <div id="activeThemeName" style="font-size: 0.78rem; font-weight: 700; color: var(--primary);">
+          Active: Supabase Emerald
+        </div>
+      </div>
+
+      <!-- Theme Tabs -->
+      <div class="theme-nav">
+        <button class="theme-tab-btn active" onclick="switchTheme('theme-supabase', 'Option 1: Supabase Emerald')">
+          🌿 1. Supabase Emerald
+        </button>
+        <button class="theme-tab-btn" onclick="switchTheme('theme-vercel', 'Option 2: Vercel Obsidian')">
+          ⚡ 2. Vercel / Linear Obsidian
+        </button>
+        <button class="theme-tab-btn" onclick="switchTheme('theme-northern', 'Option 3: Northern Lights (Aurora)')">
+          🌌 3. Northern Lights
+        </button>
+        <button class="theme-tab-btn" onclick="switchTheme('theme-graphite', 'Option 4: Graphite / Zinc')">
+          🔲 4. Graphite Zinc
+        </button>
+        <button class="theme-tab-btn" onclick="switchTheme('theme-catppuccin', 'Option 5: Catppuccin Mocha')">
+          ☕ 5. Catppuccin Mocha
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- COMPONENT 1: Surplus Batch Card with Priority Window Badge -->
+    <div class="preview-card">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+        <div>
+          <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">
+            Available Batch #4892
+          </span>
+          <h3 style="font-size: 1.25rem; font-weight: 800; margin-top: 0.15rem;">
+            Hot Vegetable Biryani & Gravy (50 Servings)
+          </h3>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+            📍 Grand Palace Hotel Banquet Hall &bull; Kitchen Gate #2
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+          <span class="badge badge-success">⭐ Priority Match for You (4m left)</span>
+          <span class="badge badge-warning">⏱ 1h 45m remaining</span>
+          <span class="badge badge-neutral">1.4 km away</span>
+        </div>
+      </div>
+
+      <!-- Transit Feasibility Bar -->
+      <div style="
+        background: var(--accent-bg);
+        border: 1px solid var(--accent-border);
+        border-radius: 8px;
+        padding: 0.55rem 0.85rem;
+        display: flex;
+        justifyContent: space-between;
+        align-items: center;
+        font-size: 0.78rem;
+        margin-bottom: 1.25rem;
+      ">
+        <span style="font-weight: 700; color: var(--primary);">
+          ✓ Feasible Self-Pickup
+        </span>
+        <span style="color: var(--text-muted);">
+          Round-trip ETA: <b>~18 mins</b> &bull; Slack Buffer: <b>+87 mins</b>
+        </span>
+      </div>
+
+      <!-- Batch Footer with Quantity & Actions -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+        <div>
+          <span style="font-size: 1.4rem; font-weight: 800; color: var(--primary);">50 kg</span>
+          <span style="font-size: 0.825rem; color: var(--text-muted); margin-left: 0.35rem;">prepared meals ready</span>
+        </div>
+
+        <div style="display: flex; gap: 0.6rem;">
+          <button class="btn btn-outline">Split / Partial (kg)</button>
+          <button class="btn btn-primary">Claim Full Batch (50 kg)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- COMPONENT 2: Digital Handover Pass (OTP) -->
+      <div class="preview-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="badge badge-success">✓ Delivery In-Transit</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">HMAC-SHA256 Token</span>
+        </div>
+        <h4 style="font-size: 1rem; font-weight: 700; margin-top: 0.75rem;">
+          Courier Pickup Verification Pass
+        </h4>
+        <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem;">
+          Present this 6-digit code at the hotel kitchen gate to unlock physical food custody:
+        </p>
+        <div style="text-align: center;">
+          <div class="otp-display">742 819</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+          <button class="btn btn-outline" style="font-size: 0.75rem;">Copy Token</button>
+          <button class="btn" style="background: var(--badge-danger-bg); color: var(--badge-danger-text); border: 1px solid var(--badge-danger-text); font-size: 0.75rem;">
+            Cancel Claim (Release)
+          </button>
+        </div>
+      </div>
+
+      <!-- COMPONENT 3: Live Inbound Radar Status -->
+      <div class="preview-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="badge badge-neutral">Radar Scan Active</span>
+          <span style="font-size: 0.75rem; color: var(--primary); font-weight: 700;">Radius: 15 km</span>
+        </div>
+        <h4 style="font-size: 1rem; font-weight: 700; margin-top: 0.75rem;">
+          Central Shelter Hub &bull; Hope Haven
+        </h4>
+        <div style="margin-top: 0.85rem; display: flex; flex-direction: column; gap: 0.65rem;">
+          <div style="background: var(--bg); padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between;">
+            <span style="font-size: 0.8rem;">🏢 Available Capacity:</span>
+            <span style="font-weight: 700; color: var(--primary);">85 kg remaining</span>
+          </div>
+          <div style="background: var(--bg); padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between;">
+            <span style="font-size: 0.8rem;">🍲 Active Donors in Perimeter:</span>
+            <span style="font-weight: 700; color: var(--text-main);">4 Commercial Kitchens</span>
+          </div>
+        </div>
+        <div style="margin-top: 1rem;">
+          <button class="btn btn-primary" style="width: 100%;">
+            Broadcast Active Food Demand
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function switchTheme(themeClass, themeName) {
+      const body = document.getElementById('themeBody');
+      body.className = themeClass;
+      document.getElementById('activeThemeName').textContent = 'Active: ' + themeName;
+
+      // Update active tab buttons
+      const buttons = document.querySelectorAll('.theme-tab-btn');
+      buttons.forEach(btn => {
+        if (btn.textContent.includes(themeName.split(':')[1]?.trim() || themeName)) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+  </script>
+</body>
+</html>
