@@ -71,7 +71,9 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const [myRequests, setMyRequests] = useState([]);
   const [reqQuantity, setReqQuantity] = useState('30');
   const [reqCategories, setReqCategories] = useState(['COOKED_MEAL', 'PACKAGED']);
+  // eslint-disable-next-line no-unused-vars
   const reqCategory = reqCategories[0] || 'COOKED_MEAL';
+  // eslint-disable-next-line no-unused-vars
   const setReqCategory = (cat) => setReqCategories([cat]);
   const [reqDietary, setReqDietary] = useState('ANY');
   const [reqHours, setReqHours] = useState('6');
