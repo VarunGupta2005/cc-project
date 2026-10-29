@@ -21,7 +21,7 @@ function getHeaderInfo(tab, session) {
     case 'donor_active':
       return { title: 'Active Donations & Handover Gate', subtitle: 'Verify driver OTP codes and track physical custody release' };
     case 'donor_history':
-      return { title: 'Donation History & ESG Scorecard', subtitle: 'Verified redistribution logs, meals distributed, and CO₂ mitigation audits' };
+      return { title: 'Donation History & Verified Log', subtitle: 'Verified redistribution and completed food surplus logs' };
     case 'shelter':
     case 'shelter_radar':
       return { title: 'Inbound Food Surplus Radar', subtitle: 'Real-time proximity radar for local hunger shelters' };

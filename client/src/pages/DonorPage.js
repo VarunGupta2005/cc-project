@@ -12,7 +12,6 @@ import {
   Truck,
   AlertCircle,
   Sparkles,
-  Leaf,
   FileText,
 } from 'lucide-react';
 import { createFoodListing, fetchAllListings, verifyPickup, fetchListingRecommendations } from '../services/api';
@@ -229,8 +228,6 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
     const deliveredPortion = allocs.reduce((s, a) => s + parseFloat(a.allocated_kg || 0), 0);
     return sum + deliveredPortion;
   }, 0);
-  const totalMeals = Math.round(totalKgDonated * 2.5);
-  const co2Saved = (totalKgDonated * 1.9).toFixed(1);
 
   const historyBatches = myListings.filter(
     (l) => l.status === 'DELIVERED' || l.status === 'EXPIRED' || isDeliveredBatch(l)
@@ -1014,8 +1011,8 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
         {/* TAB 3: HISTORY & ESG IMPACT SCORECARD                                     */}
         {/* ========================================================================= */}
         <TabsContent value="history">
-          {/* ESG Impact Scorecards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+          {/* Summary Metric Card */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 320px))', gap: '1rem', marginBottom: '1.5rem' }}>
             <Card style={{ padding: '1.15rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>
@@ -1025,30 +1022,6 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
               </div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--foreground)', marginTop: '0.25rem' }}>
                 {totalKgDonated} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--muted-foreground)' }}>kg</span>
-              </div>
-            </Card>
-
-            <Card style={{ padding: '1.15rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>
-                  Meals Distributed
-                </span>
-                <Sparkles size={16} color="#10b981" />
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#059669', marginTop: '0.25rem' }}>
-                {totalMeals} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--muted-foreground)' }}>meals</span>
-              </div>
-            </Card>
-
-            <Card style={{ padding: '1.15rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>
-                  CO₂ Averted
-                </span>
-                <Leaf size={16} color="#d97706" />
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#d97706', marginTop: '0.25rem' }}>
-                {co2Saved} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--muted-foreground)' }}>kg</span>
               </div>
             </Card>
           </div>
