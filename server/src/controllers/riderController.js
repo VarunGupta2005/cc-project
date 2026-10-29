@@ -149,12 +149,21 @@ export async function assignRider(req, res, next) {
 
     // Update handover_audits record with assignment token digest (redacting plaintext)
     const digest = hashTokenDigest(otpCode);
-    await query(
+    const auditUpdateRes = await query(
       `UPDATE handover_audits 
        SET courier_id = $1, allocation_id = $2, token_digest = $3, verification_token = $4
-       WHERE listing_id = $5`,
+       WHERE listing_id = $5 AND (allocation_id = $2 OR (allocation_id IS NULL AND delivery_time IS NULL))
+       RETURNING id`,
       [rider_id, actualAllocationId, digest, otpCode, allocation.listing_id]
     );
+
+    if (auditUpdateRes.rows.length === 0) {
+      await query(
+        `INSERT INTO handover_audits (listing_id, allocation_id, ngo_id, courier_id, verification_token, token_digest, quantity_claimed_kg)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [allocation.listing_id, actualAllocationId, allocation.shelter_id, rider_id, otpCode, digest, allocation.allocated_kg]
+      );
+    }
 
     // Notify connected clients via Redis Pub/Sub
     await redisClient.publish(

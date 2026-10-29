@@ -677,7 +677,9 @@ export async function getAllListings(req, res, next) {
          FROM allocations a
          LEFT JOIN delivery_assignments d ON d.allocation_id = a.id AND d.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'COMPLETED')
          LEFT JOIN users ru ON ru.id = d.rider_id
-         WHERE a.listing_id = f.id AND (a.shelter_id = $1::uuid OR ($1::uuid IS NULL AND a.shelter_id = f.claimed_by))
+         WHERE a.listing_id = f.id 
+           AND a.status != 'CANCELLED'
+           AND (a.shelter_id = $1::uuid OR ($1::uuid IS NULL AND a.shelter_id = f.claimed_by))
          ORDER BY a.created_at DESC
          LIMIT 1
        ) alloc ON true
@@ -693,8 +695,8 @@ export async function getAllListings(req, res, next) {
                'created_at', a.created_at,
                'assignment_id', d.id,
                'rider_id', d.rider_id,
-               'rider_name', ru.full_name,
-               'rider_phone', ru.phone,
+               'rider_name', d.rider_name,
+               'rider_phone', d.rider_phone,
                'assignment_status', d.status,
                'pickup_otp', d.pickup_otp,
                'pickup_time', ha.pickup_time,
@@ -705,15 +707,20 @@ export async function getAllListings(req, res, next) {
          ) as all_allocations
          FROM allocations a
          LEFT JOIN organizations so ON so.id = a.shelter_id
-         LEFT JOIN delivery_assignments d ON d.allocation_id = a.id AND d.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'COMPLETED')
-         LEFT JOIN users ru ON ru.id = d.rider_id
+         LEFT JOIN LATERAL (
+           SELECT da.id, da.rider_id, da.status, da.pickup_otp, ru.full_name as rider_name, ru.phone as rider_phone
+           FROM delivery_assignments da
+           LEFT JOIN users ru ON ru.id = da.rider_id
+           WHERE da.allocation_id = a.id AND da.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'COMPLETED')
+           ORDER BY da.assigned_at DESC LIMIT 1
+         ) d ON true
          LEFT JOIN LATERAL (
            SELECT pickup_time, delivery_time 
            FROM handover_audits 
            WHERE allocation_id = a.id OR (listing_id = a.listing_id AND ngo_id = a.shelter_id)
            ORDER BY created_at DESC LIMIT 1
          ) ha ON true
-         WHERE a.listing_id = f.id
+         WHERE a.listing_id = f.id AND a.status != 'CANCELLED'
        ) alloc_list ON true
        ORDER BY f.created_at DESC LIMIT 50`,
       [requestingOrgId]

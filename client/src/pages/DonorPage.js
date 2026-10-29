@@ -599,8 +599,9 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                   const isPartiallyClaimed = item.status === 'PARTIALLY_CLAIMED';
                   const isAwaitingPickup = isClaimed || isPartiallyClaimed;
 
-                  const allocations = Array.isArray(item.all_allocations) ? item.all_allocations : [];
-                  const pendingAllocations = allocations.filter((a) => a.status === 'RESERVED');
+                  const allocations = (Array.isArray(item.all_allocations) ? item.all_allocations : [])
+                    .filter((a) => a.status !== 'CANCELLED');
+                  const pendingAllocations = allocations.filter((a) => a.status === 'RESERVED' || a.status === 'ASSIGNED');
                   const inTransitAllocations = allocations.filter((a) => a.status === 'IN_TRANSIT');
 
                   // Determine display weight & portion breakdown
@@ -623,7 +624,8 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                   const hasSplitPortion = activePortionKg !== null && activePortionKg < totalKg;
                   const isRemainingPortion = hasSplitPortion && remainingKg === 0;
 
-                  const badgeVariant = isInTransit
+                  const hasPendingPickup = pendingAllocations.length > 0;
+                  const badgeVariant = isInTransit || inTransitAllocations.length > 0
                     ? 'info'
                     : isAwaitingPickup
                     ? 'outline'
@@ -673,12 +675,18 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                           }
                         >
                           {isInTransit && <Truck size={11} />}
-                          {isAwaitingPickup && <KeyRound size={11} />}
+                          {hasPendingPickup && <KeyRound size={11} />}
                           <span>
                             {isInTransit
                               ? 'In Transit'
-                              : isPartiallyClaimed
+                              : isPartiallyClaimed && hasPendingPickup
                               ? 'Partially Claimed • Awaiting Pickup'
+                              : isPartiallyClaimed && remainingKg > 0
+                              ? `Partially Claimed • ${remainingKg.toFixed(1)} kg on Radar`
+                              : isClaimed && hasPendingPickup
+                              ? 'Claimed • Awaiting Pickup'
+                              : isClaimed && inTransitAllocations.length > 0
+                              ? 'Claimed • In Transit'
                               : isClaimed
                               ? 'Claimed • Awaiting Pickup'
                               : item.status}
@@ -821,7 +829,11 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                                 <span>Driver Handover Verification</span>
                               </div>
                               <p style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', margin: '0.35rem 0 0.85rem 0' }}>
-                                The courier arriving from <b>{activeRecipientName}</b> must present their 6-digit OTP pass{hasSplitPortion ? <> to pick up <b>{activePortionKg.toFixed(1)} kg</b></> : null}. Enter it below to authorize handover:
+                                {pendingAllocations[0].rider_name ? (
+                                  <>Assigned courier <b>{pendingAllocations[0].rider_name}</b> {pendingAllocations[0].rider_phone ? `(${pendingAllocations[0].rider_phone})` : ''} must present their 6-digit OTP pass{hasSplitPortion ? <> to pick up <b>{activePortionKg.toFixed(1)} kg</b></> : null}. Enter it below to authorize handover:</>
+                                ) : (
+                                  <>The courier arriving from <b>{activeRecipientName}</b> must present their 6-digit OTP pass{hasSplitPortion ? <> to pick up <b>{activePortionKg.toFixed(1)} kg</b></> : null}. Enter it below to authorize handover:</>
+                                )}
                               </p>
 
                               {pickupMsg[item.id]?.error && (
@@ -863,8 +875,8 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                                 </Button>
                               </div>
                             </div>
-                          ) : (allocations.length === 0 && isClaimed) ? (
-                            // Legacy single-claim batch with no separate allocations record
+                          ) : (isClaimed || (isPartiallyClaimed && pendingAllocations.length === 0 && inTransitAllocations.length === 0 && allocations.every(a => a.status !== 'DELIVERED'))) ? (
+                            // Legacy single-claim batch or fallback handover gate
                             <div className="otp-pass-card" style={{ marginTop: '0.5rem', textAlign: 'left' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 600, fontSize: '0.84rem' }}>
                                 <ShieldCheck size={16} />
@@ -917,7 +929,11 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                             // All pending portions already picked up / dispatched
                             <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', color: 'var(--muted-foreground)', padding: '0.5rem 0.75rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                               <CheckCircle2 size={14} color="#38bdf8" />
-                              <span>All claimed portions have been authorized and picked up by couriers.{remainingKg > 0 ? ` ${remainingKg.toFixed(1)} kg surplus remaining on radar.` : ''}</span>
+                              <span>
+                                {remainingKg > 0
+                                  ? `Previous portion authorized and picked up. ${remainingKg.toFixed(1)} kg surplus remaining on radar for nearby shelters.`
+                                  : 'All claimed portions have been authorized and picked up by couriers.'}
+                              </span>
                             </div>
                           )}
                         </div>

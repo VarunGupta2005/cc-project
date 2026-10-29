@@ -56,7 +56,8 @@ SELECT '11112222-3333-4444-5555-666677778888'::uuid,
        'VEG', 
        CURRENT_TIMESTAMP + INTERVAL '6 hours', 
        'ACTIVE'
-WHERE NOT EXISTS (
+WHERE EXISTS (SELECT 1 FROM organizations WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'::uuid)
+  AND NOT EXISTS (
     SELECT 1 FROM recipient_requests WHERE org_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'::uuid
 );
 
@@ -68,6 +69,7 @@ SELECT '22223333-4444-5555-6666-777788889999'::uuid,
        'ANY', 
        CURRENT_TIMESTAMP + INTERVAL '8 hours', 
        'ACTIVE'
-WHERE NOT EXISTS (
+WHERE EXISTS (SELECT 1 FROM organizations WHERE id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'::uuid)
+  AND NOT EXISTS (
     SELECT 1 FROM recipient_requests WHERE org_id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'::uuid
 );

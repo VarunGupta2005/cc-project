@@ -14,7 +14,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./db/init.sql:/docker-entrypoint-initdb.d/000_init.sql:ro
+      - ./db/migrations/001_deadline_and_demand_schema.sql:/docker-entrypoint-initdb.d/001_deadline_and_demand_schema.sql:ro
+      - ./db/migrations/002_partial_claims_and_tiers.sql:/docker-entrypoint-initdb.d/002_partial_claims_and_tiers.sql:ro
+      - ./db/migrations/003_rider_dispatch_and_allocations.sql:/docker-entrypoint-initdb.d/003_rider_dispatch_and_allocations.sql:ro
+      - ./db/migrations/004_rider_availability_and_backfill.sql:/docker-entrypoint-initdb.d/004_rider_availability_and_backfill.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d rescuegrid"]
       interval: 5s

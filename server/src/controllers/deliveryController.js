@@ -158,11 +158,11 @@ export async function verifyPickup(req, res, next) {
       );
     }
 
-    // 4. Check if there are other allocations still awaiting pickup (RESERVED)
+    // 4. Check if there are other allocations still awaiting pickup (RESERVED or ASSIGNED)
     const pendingAllocRes = await query(
       `SELECT COUNT(*) as pending_count 
        FROM allocations 
-       WHERE listing_id = $1 AND status = 'RESERVED'`,
+       WHERE listing_id = $1 AND status IN ('RESERVED', 'ASSIGNED')`,
       [listing_id]
     );
     const pendingCount = parseInt(pendingAllocRes.rows[0]?.pending_count || '0', 10);

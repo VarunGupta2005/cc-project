@@ -48,8 +48,9 @@ export function initSocketManager(httpServer) {
           ioInstance.emit('food:reopened', parsed);
         } else if (parsed.event === 'FOOD_EXPIRED') {
           ioInstance.emit('food:expired', parsed);
-        } else if (parsed.event === 'DELIVERY_UPDATE') {
+        } else if (parsed.event === 'DELIVERY_UPDATE' || parsed.event === 'RIDER_ASSIGNED' || parsed.event === 'RIDER_ASSIGNMENT_CANCELLED') {
           ioInstance.emit('delivery:update', parsed);
+          ioInstance.emit('rider:update', parsed);
         }
       } catch (e) {
         console.error('[Error processing Pub/Sub message]', e);
