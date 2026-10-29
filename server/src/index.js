@@ -81,7 +81,35 @@ async function bootstrap() {
       console.warn('[Bootstrap Warning] Could not pre-seed shelters:', seedErr.message);
     }
 
-    // 6. Start HTTP & WebSocket Server
+    // 6. Reconcile any delivered listings stuck in IN_TRANSIT
+    try {
+      const reconcileRes = await pool.query(`
+        UPDATE food_listings f
+        SET status = 'DELIVERED', quantity_remaining = 0
+        WHERE f.status = 'IN_TRANSIT'
+          AND NOT EXISTS (
+            SELECT 1 FROM allocations a 
+            WHERE a.listing_id = f.id AND a.status NOT IN ('DELIVERED', 'CANCELLED')
+          )
+          AND (
+            f.quantity_remaining IS NULL 
+            OR f.quantity_remaining <= 0 
+            OR (
+              SELECT COALESCE(SUM(a.allocated_kg), 0) 
+              FROM allocations a 
+              WHERE a.listing_id = f.id AND a.status = 'DELIVERED'
+            ) >= f.quantity_kg
+          )
+        RETURNING id
+      `);
+      if (reconcileRes.rows.length > 0) {
+        console.log(`[Bootstrap] Reconciled ${reconcileRes.rows.length} stuck listings to DELIVERED status.`);
+      }
+    } catch (recErr) {
+      console.warn('[Bootstrap Warning] Listing reconciliation check:', recErr.message);
+    }
+
+    // 7. Start HTTP & WebSocket Server
     server.listen(PORT, () => {
       console.log(`[RescueGrid API] Server running on port ${PORT}`);
       console.log(`[RescueGrid API] Instance: ${process.env.HOSTNAME || 'localhost'}`);

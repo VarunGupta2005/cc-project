@@ -202,19 +202,41 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
     }
   };
 
+  const isDeliveredBatch = (l) => {
+    if (l.status === 'DELIVERED') return true;
+    const allocs = (Array.isArray(l.all_allocations) ? l.all_allocations : []).filter(
+      (a) => a.status !== 'CANCELLED'
+    );
+    const rem = parseFloat(l.quantity_remaining !== undefined && l.quantity_remaining !== null ? l.quantity_remaining : l.quantity_kg || 0);
+    const totalKg = parseFloat(l.quantity_kg || 0);
+    const deliveredKg = allocs
+      .filter((a) => a.status === 'DELIVERED')
+      .reduce((sum, a) => sum + parseFloat(a.allocated_kg || 0), 0);
+
+    if (allocs.length > 0 && (rem <= 0 || deliveredKg >= totalKg) && allocs.every((a) => a.status === 'DELIVERED')) {
+      return true;
+    }
+    return false;
+  };
+
   // ESG Metrics
-  const totalKgDonated = myListings.reduce(
-    (sum, item) => (item.status === 'DELIVERED' ? sum + parseFloat(item.quantity_kg || 0) : sum),
-    0
-  );
+  const totalKgDonated = myListings.reduce((sum, item) => {
+    if (isDeliveredBatch(item)) {
+      return sum + parseFloat(item.quantity_kg || 0);
+    }
+    const allocs = (Array.isArray(item.all_allocations) ? item.all_allocations : [])
+      .filter((a) => a.status === 'DELIVERED');
+    const deliveredPortion = allocs.reduce((s, a) => s + parseFloat(a.allocated_kg || 0), 0);
+    return sum + deliveredPortion;
+  }, 0);
   const totalMeals = Math.round(totalKgDonated * 2.5);
   const co2Saved = (totalKgDonated * 1.9).toFixed(1);
 
-  const activeBatches = myListings.filter(
-    (l) => l.status === 'AVAILABLE' || l.status === 'CLAIMED' || l.status === 'IN_TRANSIT' || l.status === 'PARTIALLY_CLAIMED'
-  );
   const historyBatches = myListings.filter(
-    (l) => l.status === 'DELIVERED' || l.status === 'EXPIRED'
+    (l) => l.status === 'DELIVERED' || l.status === 'EXPIRED' || isDeliveredBatch(l)
+  );
+  const activeBatches = myListings.filter(
+    (l) => !historyBatches.some((h) => h.id === l.id)
   );
   const activeBatchesCount = activeBatches.length;
 
@@ -603,6 +625,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                     .filter((a) => a.status !== 'CANCELLED');
                   const pendingAllocations = allocations.filter((a) => a.status === 'RESERVED' || a.status === 'ASSIGNED');
                   const inTransitAllocations = allocations.filter((a) => a.status === 'IN_TRANSIT');
+                  const deliveredAllocations = allocations.filter((a) => a.status === 'DELIVERED');
 
                   // Determine display weight & portion breakdown
                   const totalKg = parseFloat(item.quantity_kg || 0);
@@ -625,10 +648,13 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                   const isRemainingPortion = hasSplitPortion && remainingKg === 0;
 
                   const hasPendingPickup = pendingAllocations.length > 0;
-                  const badgeVariant = isInTransit || inTransitAllocations.length > 0
+                  const hasAnyInTransit = inTransitAllocations.length > 0 || (isInTransit && pendingAllocations.length === 0 && deliveredAllocations.length === 0);
+                  const badgeVariant = hasAnyInTransit
                     ? 'info'
-                    : isAwaitingPickup
+                    : hasPendingPickup
                     ? 'outline'
+                    : deliveredAllocations.length > 0
+                    ? 'success'
                     : 'secondary';
 
                   return (
@@ -669,18 +695,21 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                         <Badge
                           variant={badgeVariant}
                           style={
-                            isAwaitingPickup
+                            isAwaitingPickup && hasPendingPickup
                               ? { color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }
                               : undefined
                           }
                         >
-                          {isInTransit && <Truck size={11} />}
+                          {hasAnyInTransit && <Truck size={11} />}
                           {hasPendingPickup && <KeyRound size={11} />}
+                          {deliveredAllocations.length > 0 && !hasAnyInTransit && !hasPendingPickup && <CheckCircle2 size={11} />}
                           <span>
-                            {isInTransit
+                            {hasAnyInTransit
                               ? 'In Transit'
                               : isPartiallyClaimed && hasPendingPickup
                               ? 'Partially Claimed • Awaiting Pickup'
+                              : isPartiallyClaimed && remainingKg > 0 && deliveredAllocations.length > 0
+                              ? `Portion Delivered • ${remainingKg.toFixed(1)} kg on Radar`
                               : isPartiallyClaimed && remainingKg > 0
                               ? `Partially Claimed • ${remainingKg.toFixed(1)} kg on Radar`
                               : isClaimed && hasPendingPickup
@@ -953,10 +982,24 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                         </div>
                       )}
 
-                      {isInTransit && inTransitAllocations.length === 0 && (
+                      {hasAnyInTransit && inTransitAllocations.length === 0 && (
                         <div className="alert-box alert-box--info" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', marginBottom: 0 }}>
                           <Truck size={14} />
                           <span>Courier verified! Food is currently in transit to recipient shelter.</span>
+                        </div>
+                      )}
+
+                      {/* Portions delivered notification for active batches */}
+                      {deliveredAllocations.length > 0 && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          {deliveredAllocations.map((da) => (
+                            <div key={da.id} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', color: '#10b981', padding: '0.5rem 0.75rem', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius)', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '0.35rem' }}>
+                              <CheckCircle2 size={14} />
+                              <span>
+                                Portion <b>{parseFloat(da.allocated_kg || 0).toFixed(1)} kg</b> safely received and confirmed by <b>{da.shelter_name || 'Verified Shelter'}</b>.
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -1038,8 +1081,8 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
             ) : (
               <div>
                 {historyBatches.map((item) => {
-                  const isDelivered = item.status === 'DELIVERED';
-                  const isExpired = item.status === 'EXPIRED';
+                  const isDelivered = item.status === 'DELIVERED' || isDeliveredBatch(item);
+                  const isExpired = item.status === 'EXPIRED' && !isDelivered;
 
                   return (
                     <div key={item.id} className="batch-card" style={{ opacity: isExpired ? 0.75 : 1 }}>

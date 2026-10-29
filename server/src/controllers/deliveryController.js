@@ -1,5 +1,6 @@
 import { query } from '../config/database.js';
 import { redisClient } from '../config/redis.js';
+import { removeDonationFromGeo } from '../services/redisEngine.js';
 import { verifyHandoverToken, hashTokenDigest } from '../services/tokenService.js';
 
 export async function verifyPickup(req, res, next) {
@@ -174,6 +175,9 @@ export async function verifyPickup(req, res, next) {
         `UPDATE food_listings SET status = 'IN_TRANSIT' WHERE id = $1`,
         [listing_id]
       );
+      try {
+        await redisClient.hSet(`listing:${listing_id}`, { status: 'IN_TRANSIT' });
+      } catch (e) {}
     }
 
     await redisClient.publish('channel:alerts', JSON.stringify({
@@ -284,21 +288,80 @@ export async function confirmDelivery(req, res, next) {
       );
     }
 
-    // 2. Check if all allocations for this listing are now DELIVERED
+    // 2. Check remaining undelivered allocations (ignoring CANCELLED allocations)
     const remainingAllocsRes = await query(
       `SELECT COUNT(*) as undelivered_count 
        FROM allocations 
-       WHERE listing_id = $1 AND status != 'DELIVERED'`,
+       WHERE listing_id = $1 AND status NOT IN ('DELIVERED', 'CANCELLED')`,
       [listingId]
     );
     const undeliveredCount = parseInt(remainingAllocsRes.rows[0]?.undelivered_count || '0', 10);
-    const qtyRemaining = parseFloat(listing.quantity_remaining || '0');
 
-    if (undeliveredCount === 0 && qtyRemaining <= 0) {
-      await query(
-        `UPDATE food_listings SET status = 'DELIVERED' WHERE id = $1`,
+    // Fetch up-to-date total delivered weight vs total batch weight
+    const batchSummaryRes = await query(
+      `SELECT 
+         f.quantity_kg, 
+         f.quantity_remaining,
+         COALESCE(SUM(a.allocated_kg) FILTER (WHERE a.status = 'DELIVERED'), 0)::numeric(10,2) as delivered_kg
+       FROM food_listings f
+       LEFT JOIN allocations a ON a.listing_id = f.id
+       WHERE f.id = $1
+       GROUP BY f.id`,
+      [listingId]
+    );
+
+    const totalBatchKg = parseFloat(batchSummaryRes.rows[0]?.quantity_kg || listing.quantity_kg || '0');
+    const deliveredBatchKg = parseFloat(batchSummaryRes.rows[0]?.delivered_kg || '0');
+    const qtyRemaining = parseFloat(
+      batchSummaryRes.rows[0]?.quantity_remaining !== undefined && batchSummaryRes.rows[0]?.quantity_remaining !== null
+        ? batchSummaryRes.rows[0].quantity_remaining
+        : listing.quantity_remaining || '0'
+    );
+
+    let finalListingStatus = 'IN_TRANSIT';
+
+    if (undeliveredCount === 0) {
+      if (qtyRemaining <= 0 || deliveredBatchKg >= totalBatchKg) {
+        // Complete batch fulfilled and safely delivered
+        finalListingStatus = 'DELIVERED';
+        await query(
+          `UPDATE food_listings SET status = 'DELIVERED', quantity_remaining = 0 WHERE id = $1`,
+          [listingId]
+        );
+        try {
+          await removeDonationFromGeo(listingId);
+          await redisClient.hSet(`listing:${listingId}`, { status: 'DELIVERED', quantity_remaining: '0' });
+        } catch (e) {
+          console.error('[Redis Sync Error in confirmDeliveryReceipt]', e);
+        }
+      } else {
+        // Portions were delivered, but remaining surplus is still on radar
+        finalListingStatus = qtyRemaining >= totalBatchKg ? 'AVAILABLE' : 'PARTIALLY_CLAIMED';
+        await query(
+          `UPDATE food_listings SET status = $1 WHERE id = $2`,
+          [finalListingStatus, listingId]
+        );
+        try {
+          await redisClient.hSet(`listing:${listingId}`, { status: finalListingStatus });
+        } catch (e) {
+          console.error('[Redis Sync Error in confirmDeliveryReceipt]', e);
+        }
+      }
+    } else {
+      // There are other allocations still in transit or pending pickup
+      const anyInTransitRes = await query(
+        `SELECT COUNT(*) as intransit_count FROM allocations WHERE listing_id = $1 AND status = 'IN_TRANSIT'`,
         [listingId]
       );
+      const inTransitCount = parseInt(anyInTransitRes.rows[0]?.intransit_count || '0', 10);
+      finalListingStatus = inTransitCount > 0 ? 'IN_TRANSIT' : 'PARTIALLY_CLAIMED';
+      await query(
+        `UPDATE food_listings SET status = $1 WHERE id = $2`,
+        [finalListingStatus, listingId]
+      );
+      try {
+        await redisClient.hSet(`listing:${listingId}`, { status: finalListingStatus });
+      } catch (e) {}
     }
 
     // If recipient has active demand, mark fulfilled
@@ -318,7 +381,7 @@ export async function confirmDelivery(req, res, next) {
       event: 'DELIVERY_UPDATE',
       listingId,
       allocationId: allocId,
-      status: undeliveredCount === 0 && qtyRemaining <= 0 ? 'DELIVERED' : 'IN_TRANSIT',
+      status: finalListingStatus,
       delivery_time: now.toISOString(),
     }));
 
