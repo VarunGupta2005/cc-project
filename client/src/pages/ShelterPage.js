@@ -493,7 +493,6 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                     <option value="30">30 km (Suburban)</option>
                     <option value="50">50 km (Metro Area)</option>
                     <option value="150">150 km (Regional)</option>
-                    <option value="3000">🌐 All India (Wide Test)</option>
                   </select>
 
                   <Button
@@ -618,13 +617,15 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                   <Navigation size={13} />
                   <span>Snap Radar to Food Location</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setRadiusKm(3000)}
-                >
-                  <span>Expand Radius to All India</span>
-                </Button>
+                {radiusKm < 150 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRadiusKm(150)}
+                  >
+                    <span>Expand Radius to 150 km</span>
+                  </Button>
+                )}
               </div>
             </Card>
           )}
@@ -658,9 +659,11 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
               <CardDescription style={{ maxWidth: '420px', margin: '0 auto 1.5rem auto' }}>
                 Your shelter radar is scanning around <b>{radarAddress}</b>. Switch to the Food Producer portal to broadcast food, or broaden your search radius.
               </CardDescription>
-              <Button variant="outline" onClick={() => setRadiusKm(3000)}>
-                <span>Search All India (3000 km)</span>
-              </Button>
+              {radiusKm < 150 && (
+                <Button variant="outline" onClick={() => setRadiusKm(150)}>
+                  <span>Expand Search Radius to 150 km</span>
+                </Button>
+              )}
             </Card>
           ) : (
             <div>
