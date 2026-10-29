@@ -68,6 +68,21 @@ export async function createRequest(req, res, next) {
       neededByTime = new Date(Date.now() + validHours * 3600 * 1000);
     }
 
+    // Single Active Demand Constraint: Only one active/partially fulfilled demand allowed per organization
+    const existingReq = await query(
+      `SELECT id, quantity_kg, quantity_remaining_kg, status 
+       FROM recipient_requests 
+       WHERE org_id = $1 AND status IN ('ACTIVE', 'PARTIALLY_FULFILLED')`,
+      [orgId]
+    );
+
+    if (existingReq.rows.length > 0) {
+      return res.status(409).json({
+        error: 'Your facility already has an active food demand open. Only one active demand is permitted at a time. Please cancel or fulfill your current requirement before broadcasting a new one.',
+        existing_request: existingReq.rows[0],
+      });
+    }
+
     const catStr = Array.isArray(category) && category.length > 0
       ? category.join(',')
       : (category || 'COOKED_MEAL');

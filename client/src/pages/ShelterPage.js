@@ -892,153 +892,200 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                 </div>
               )}
 
-              <form onSubmit={handlePostRequest}>
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <div className="form-group" style={{ maxWidth: '320px', marginBottom: '1.25rem' }}>
-                    <label className="form-label">
-                      <span>Total Quantity Needed (kg)</span>
-                      <span className="form-hint">Kilograms required</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0.1"
-                      placeholder="30"
-                      value={reqQuantity}
-                      onChange={(e) => setReqQuantity(e.target.value)}
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid var(--border)',
-                        background: 'var(--background)',
-                        color: 'var(--foreground)',
-                        fontSize: '0.875rem'
-                      }}
-                    />
-                  </div>
-
-                  {/* Multi-Select Checkboxes for Accepted Categories */}
-                  <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                    <label className="form-label">
-                      <span>Accepted Food Categories (Tick all that apply)</span>
-                      <span className="form-hint" style={{ color: 'var(--primary)', fontWeight: 600 }}>
-                        {reqCategories.length} category(ies) selected
-                      </span>
-                    </label>
+              {myRequests.length > 0 ? (
+                <div style={{
+                  padding: '1.25rem',
+                  backgroundColor: 'var(--muted)',
+                  borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-                      gap: '0.6rem',
-                      marginTop: '0.35rem'
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: 'var(--radius)',
+                      backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                      color: '#38bdf8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
                     }}>
-                      {DEMAND_CATEGORIES.map((cat) => {
-                        const isSelected = reqCategories.includes(cat.id);
-                        return (
-                          <div
-                            key={cat.id}
-                            onClick={() => toggleReqCategory(cat.id)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: '0.65rem',
-                              padding: '0.65rem 0.85rem',
-                              borderRadius: 'var(--radius)',
-                              border: `1.5px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
-                              backgroundColor: isSelected ? 'var(--accent)' : 'var(--card)',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease',
-                              userSelect: 'none',
-                              boxShadow: isSelected ? 'var(--shadow-xs)' : 'none',
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {}} // Handled by container onClick
-                              style={{
-                                cursor: 'pointer',
-                                accentColor: 'var(--primary)',
-                                width: '16px',
-                                height: '16px',
-                                marginTop: '2px',
-                                flexShrink: 0
-                              }}
-                            />
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.84rem', fontWeight: isSelected ? 700 : 600, color: 'var(--foreground)' }}>
-                                {cat.label}
-                              </div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', marginTop: '0.1rem' }}>
-                                {cat.desc}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                      <Utensils size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--foreground)' }}>
+                        Active Demand Requirement In Progress
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
+                        Your facility currently has an active demand open. To prevent duplicate allocations and preserve AI dispatch accuracy, a shelter can maintain only one active demand requirement at a time.
+                      </div>
                     </div>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCancelReq(myRequests[0].id)}
+                    style={{ color: '#b91c1c', borderColor: 'rgba(239, 68, 68, 0.35)', gap: '0.35rem' }}
+                  >
+                    <Trash2 size={13} />
+                    <span>Cancel & Post New Need</span>
+                  </Button>
                 </div>
+              ) : (
+                <form onSubmit={handlePostRequest}>
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <div className="form-group" style={{ maxWidth: '320px', marginBottom: '1.25rem' }}>
+                      <label className="form-label">
+                        <span>Total Quantity Needed (kg)</span>
+                        <span className="form-hint">Kilograms required</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0.1"
+                        placeholder="30"
+                        value={reqQuantity}
+                        onChange={(e) => setReqQuantity(e.target.value)}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--border)',
+                          background: 'var(--background)',
+                          color: 'var(--foreground)',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </div>
 
-                <div className="workflow-grid" style={{ marginBottom: '1.25rem' }}>
-                  <div className="form-group">
-                    <label className="form-label">
-                      <span>Dietary Compatibility</span>
-                      <span className="form-hint">Beneficiary requirement</span>
-                    </label>
-                    <select
-                      value={reqDietary}
-                      onChange={(e) => setReqDietary(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid var(--border)',
-                        background: 'var(--background)',
-                        color: 'var(--foreground)',
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      <option value="ANY">Any Dietary Type</option>
-                      <option value="VEG">Strictly Vegetarian</option>
-                      <option value="NON_VEG">Includes Non-Vegetarian</option>
-                      <option value="VEGAN">Strictly Vegan</option>
-                    </select>
+                    {/* Multi-Select Checkboxes for Accepted Categories */}
+                    <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                      <label className="form-label">
+                        <span>Accepted Food Categories (Tick all that apply)</span>
+                        <span className="form-hint" style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                          {reqCategories.length} category(ies) selected
+                        </span>
+                      </label>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                        gap: '0.6rem',
+                        marginTop: '0.35rem'
+                      }}>
+                        {DEMAND_CATEGORIES.map((cat) => {
+                          const isSelected = reqCategories.includes(cat.id);
+                          return (
+                            <div
+                              key={cat.id}
+                              onClick={() => toggleReqCategory(cat.id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '0.65rem',
+                                padding: '0.65rem 0.85rem',
+                                borderRadius: 'var(--radius)',
+                                border: `1.5px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                                backgroundColor: isSelected ? 'var(--accent)' : 'var(--card)',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                userSelect: 'none',
+                                boxShadow: isSelected ? 'var(--shadow-xs)' : 'none',
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}} // Handled by container onClick
+                                style={{
+                                  cursor: 'pointer',
+                                  accentColor: 'var(--primary)',
+                                  width: '16px',
+                                  height: '16px',
+                                  marginTop: '2px',
+                                  flexShrink: 0
+                                }}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '0.84rem', fontWeight: isSelected ? 700 : 600, color: 'var(--foreground)' }}>
+                                  {cat.label}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', marginTop: '0.1rem' }}>
+                                  {cat.desc}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">
-                      <span>Needed Within</span>
-                      <span className="form-hint">Operational delivery window</span>
-                    </label>
-                    <select
-                      value={reqHours}
-                      onChange={(e) => setReqHours(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid var(--border)',
-                        background: 'var(--background)',
-                        color: 'var(--foreground)',
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      <option value="2">Next 2 Hours (Urgent Meal)</option>
-                      <option value="4">Next 4 Hours</option>
-                      <option value="6">Next 6 Hours</option>
-                      <option value="12">Next 12 Hours (Today)</option>
-                      <option value="24">Next 24 Hours</option>
-                    </select>
-                  </div>
-                </div>
+                  <div className="workflow-grid" style={{ marginBottom: '1.25rem' }}>
+                    <div className="form-group">
+                      <label className="form-label">
+                        <span>Dietary Compatibility</span>
+                        <span className="form-hint">Beneficiary requirement</span>
+                      </label>
+                      <select
+                        value={reqDietary}
+                        onChange={(e) => setReqDietary(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--border)',
+                          background: 'var(--background)',
+                          color: 'var(--foreground)',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        <option value="ANY">Any Dietary Type</option>
+                        <option value="VEG">Strictly Vegetarian</option>
+                        <option value="NON_VEG">Includes Non-Vegetarian</option>
+                        <option value="VEGAN">Strictly Vegan</option>
+                      </select>
+                    </div>
 
-                <Button type="submit" disabled={postingReq} style={{ width: '100%' }}>
-                  <PlusCircle size={15} />
-                  <span>{postingReq ? 'Broadcasting Need...' : `Broadcast Food Requirement (${reqCategories.length} Categories)`}</span>
-                </Button>
-              </form>
+                    <div className="form-group">
+                      <label className="form-label">
+                        <span>Needed Within</span>
+                        <span className="form-hint">Operational delivery window</span>
+                      </label>
+                      <select
+                        value={reqHours}
+                        onChange={(e) => setReqHours(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--border)',
+                          background: 'var(--background)',
+                          color: 'var(--foreground)',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        <option value="2">Next 2 Hours (Urgent Meal)</option>
+                        <option value="4">Next 4 Hours</option>
+                        <option value="6">Next 6 Hours</option>
+                        <option value="12">Next 12 Hours (Today)</option>
+                        <option value="24">Next 24 Hours</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={postingReq} style={{ width: '100%' }}>
+                    <PlusCircle size={15} />
+                    <span>{postingReq ? 'Broadcasting Need...' : `Broadcast Food Requirement (${reqCategories.length} Categories)`}</span>
+                  </Button>
+                </form>
+              )}
             </CardContent>
           </Card>
 
