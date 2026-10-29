@@ -13,7 +13,7 @@ CREATE INDEX IF NOT EXISTS idx_users_org ON users(organization_id);
 
 -- 3. Extend organizations with formal verification status
 ALTER TABLE organizations 
-  ADD COLUMN IF NOT EXISTS verification_status VARCHAR(50) DEFAULT 'VERIFIED';
+  ADD COLUMN IF NOT EXISTS verification_status VARCHAR(50) DEFAULT 'PENDING';
 
 ALTER TABLE organizations 
   ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
@@ -72,17 +72,10 @@ ALTER TABLE handover_audits
 ALTER TABLE handover_audits 
   ADD COLUMN IF NOT EXISTS token_digest VARCHAR(255);
 
--- 7. Seed Admin and Hope Haven Rider accounts (password123 for both)
+-- 7. Seed Admin account (password123)
 -- bcrypt hash for 'password123': $2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW
 INSERT INTO users (id, email, password_hash, role, full_name, phone, organization_id)
 VALUES 
-  ('77777777-7777-7777-7777-777777777777', 'admin@rescuegrid.org', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'ADMIN', 'System Operations Admin', '+91 99999 00000', NULL),
-  ('88888888-8888-8888-8888-888888888888', 'rider@hopehaven.org', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'RIDER', 'Vikram Singh (Hope Haven Courier)', '+91 98765 43210', 'cccccccc-cccc-cccc-cccc-cccccccccccc')
+  ('77777777-7777-7777-7777-777777777777', 'admin@rescuegrid.org', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'ADMIN', 'System Operations Admin', '+91 99999 00000', NULL)
 ON CONFLICT (email) DO UPDATE
-SET role = EXCLUDED.role,
-    organization_id = EXCLUDED.organization_id;
-
--- Also bind existing demo courier to Hope Haven
-UPDATE users 
-SET organization_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc' 
-WHERE email = 'courier@rescuegrid.org' AND organization_id IS NULL;
+SET role = EXCLUDED.role;

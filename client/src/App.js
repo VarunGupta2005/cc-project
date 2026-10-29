@@ -10,7 +10,7 @@ import MasterMapPage from './pages/MasterMapPage';
 import AccountPage from './pages/AccountPage';
 import TokenModal from './components/TokenModal';
 import { Button } from './components/ui/button';
-import { getStoredSession, clearSession } from './services/api';
+import { getStoredSession, clearSession, saveSession, getProfile } from './services/api';
 
 function getHeaderInfo(tab, session) {
   const role = session?.user?.role || 'DONOR';
@@ -109,6 +109,34 @@ export default function App() {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  // Periodically refresh profile verification status from API to keep UI updated in real-time
+  useEffect(() => {
+    if (!session?.token) return;
+    let isMounted = true;
+    const fetchLatestProfile = async () => {
+      try {
+        const data = await getProfile(session.token);
+        if (data && data.user && isMounted) {
+          saveSession(session.token, data.user, data.organization);
+          setSession((prev) => ({
+            ...prev,
+            user: data.user,
+            org: data.organization,
+          }));
+        }
+      } catch (e) {
+        // Silent catch if network blip
+      }
+    };
+
+    fetchLatestProfile();
+    const interval = setInterval(fetchLatestProfile, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [session?.token]);
 
   const handleLoginSuccess = (user) => {
     const newSession = getStoredSession();

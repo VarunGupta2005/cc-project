@@ -93,6 +93,9 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const [postingReq, setPostingReq] = useState(false);
   const [reqMsg, setReqMsg] = useState(null);
 
+  const isFacilityRejected = session?.org?.verification_status === 'REJECTED';
+  const isFacilityPending = session?.org && !session?.org?.is_verified && session?.org?.verification_status !== 'VERIFIED' && !isFacilityRejected;
+
   // Fleet Riders State
   const [shelterRiders, setShelterRiders] = useState([]);
   const [assigningDelivery, setAssigningDelivery] = useState(null);
@@ -315,6 +318,14 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   };
 
   const openClaimModal = (item) => {
+    if (isFacilityRejected) {
+      setClaimError('Facility Suspended − Your organization has been debarred by compliance admin from claiming food.');
+      return;
+    }
+    if (isFacilityPending) {
+      setClaimError('Facility Verification Pending − Your shelter is awaiting administrator audit before claiming surplus food.');
+      return;
+    }
     setClaimError(null);
     setClaimingListing(item);
   };
@@ -523,6 +534,52 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
               </CardContent>
             )}
           </Card>
+
+          {isFacilityRejected && (
+            <div style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              borderRadius: 'var(--radius)',
+              padding: '1.25rem 1.5rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem'
+            }}>
+              <div style={{ fontSize: '1.75rem' }}>🚫</div>
+              <div>
+                <div style={{ fontWeight: 800, color: 'var(--destructive-text)', fontSize: '0.95rem' }}>
+                  Facility Suspended − Claiming Privileges Revoked
+                </div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
+                  Your facility was rejected by compliance administration. You cannot reserve or intake surplus food batches.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isFacilityPending && (
+            <div style={{
+              backgroundColor: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: 'var(--radius)',
+              padding: '1.25rem 1.5rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem'
+            }}>
+              <div style={{ fontSize: '1.75rem' }}>⏳</div>
+              <div>
+                <div style={{ fontWeight: 800, color: '#f59e0b', fontSize: '0.95rem' }}>
+                  Facility Verification Pending Review
+                </div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
+                  Your facility registration is queued for platform compliance verification. Claiming food will activate once approved by an admin.
+                </div>
+              </div>
+            </div>
+          )}
 
           {claimError && (
             <div className="alert-box alert-box--error" style={{ marginBottom: '1rem' }}>

@@ -56,6 +56,31 @@ export async function createListing(req, res, next) {
       return res.status(400).json({ error: 'Donor identification required' });
     }
 
+    // Verify donor facility compliance & authorization
+    const donorOrgRes = await query(
+      `SELECT o.id, o.name, o.verification_status, o.is_verified
+       FROM organizations o
+       WHERE o.user_id = $1 OR o.id = (SELECT organization_id FROM users WHERE id = $1)
+       LIMIT 1`,
+      [donorId]
+    );
+
+    if (donorOrgRes.rows.length > 0) {
+      const donorOrg = donorOrgRes.rows[0];
+      if (donorOrg.verification_status === 'REJECTED') {
+        return res.status(403).json({
+          error: 'Facility rejected by administration. You are debarred from broadcasting food.',
+          code: 'DONOR_DEBARRED',
+        });
+      }
+      if (!donorOrg.is_verified || donorOrg.verification_status === 'PENDING') {
+        return res.status(403).json({
+          error: 'Facility verification pending review by compliance admin. Cannot broadcast food until approved.',
+          code: 'DONOR_PENDING_VERIFICATION',
+        });
+      }
+    }
+
     const cookedTime = cooked_at ? new Date(cooked_at) : new Date();
     const prepTime = preparation_time ? new Date(preparation_time) : cookedTime;
 
@@ -117,7 +142,8 @@ export async function createListing(req, res, next) {
          FROM organizations o
          LEFT JOIN recipient_requests r ON r.org_id = o.id AND r.status = 'ACTIVE'
          WHERE o.org_type IN ('SHELTER', 'ORPHANAGE', 'COMMUNITY_KITCHEN')
-           AND o.is_verified = TRUE`
+           AND o.is_verified = TRUE
+           AND (o.verification_status IS NULL OR o.verification_status = 'VERIFIED')`
       );
 
       const candidates = sheltersRes.rows.map((s) => ({
@@ -273,6 +299,32 @@ export async function claimListing(req, res, next) {
 
     if (requestedKg !== null && (isNaN(requestedKg) || requestedKg <= 0)) {
       return res.status(400).json({ error: 'Claim quantity must be a positive number' });
+    }
+
+    // Verify recipient facility compliance & authorization
+    const shelterOrgRes = await query(
+      `SELECT id, name, verification_status, is_verified
+       FROM organizations
+       WHERE id = $1`,
+      [shelterId]
+    );
+
+    if (shelterOrgRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Recipient organization not found' });
+    }
+
+    const shelterOrg = shelterOrgRes.rows[0];
+    if (shelterOrg.verification_status === 'REJECTED') {
+      return res.status(403).json({
+        error: 'Facility rejected by administration. You are debarred from claiming food.',
+        code: 'SHELTER_DEBARRED',
+      });
+    }
+    if (!shelterOrg.is_verified || shelterOrg.verification_status === 'PENDING') {
+      return res.status(403).json({
+        error: 'Facility verification pending review by compliance admin. Cannot claim food until approved.',
+        code: 'SHELTER_PENDING_VERIFICATION',
+      });
     }
 
     // -----------------------------------------------------------

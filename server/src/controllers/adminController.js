@@ -1,4 +1,5 @@
 import { query } from '../config/database.js';
+import { redisClient } from '../config/redis.js';
 import { seedShelter } from '../services/redisEngine.js';
 
 /**
@@ -9,8 +10,9 @@ export async function getAdminOverview(req, res, next) {
     const [orgsCount, usersCount, listingsCount, auditsCount, allocsCount] = await Promise.all([
       query(`SELECT 
               COUNT(*) as total,
-              COUNT(CASE WHEN verification_status = 'PENDING' OR is_verified IS FALSE THEN 1 END) as pending,
-              COUNT(CASE WHEN verification_status = 'VERIFIED' OR is_verified IS TRUE THEN 1 END) as verified
+              COUNT(CASE WHEN verification_status = 'PENDING' OR (is_verified IS FALSE AND verification_status != 'REJECTED') THEN 1 END) as pending,
+              COUNT(CASE WHEN verification_status = 'VERIFIED' OR (is_verified IS TRUE AND verification_status != 'REJECTED') THEN 1 END) as verified,
+              COUNT(CASE WHEN verification_status = 'REJECTED' THEN 1 END) as rejected
              FROM organizations`),
       query(`SELECT COUNT(*) as total, role FROM users GROUP BY role`),
       query(`SELECT 
@@ -100,6 +102,9 @@ export async function verifyOrganization(req, res, next) {
     if (isVerifiedBool && ['SHELTER', 'ORPHANAGE', 'COMMUNITY_KITCHEN'].includes(org.org_type)) {
       await seedShelter(org.id, org.longitude, org.latitude);
       console.log(`[Admin] Seeded approved shelter ${org.name} into Redis geo:shelters`);
+    } else if (!isVerifiedBool) {
+      await redisClient.zRem('geo:shelters', org.id);
+      console.log(`[Admin] Removed debarred/unverified shelter ${org.name} from Redis geo:shelters`);
     }
 
     res.json({

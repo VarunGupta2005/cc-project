@@ -102,8 +102,9 @@ export default function AdminPage({ initialTab = 'overview', onTabChange }) {
 
   const filteredOrgs = organizations.filter((o) => {
     if (orgFilter === 'ALL') return true;
-    if (orgFilter === 'PENDING') return o.verification_status === 'PENDING' || o.is_verified === false;
-    if (orgFilter === 'VERIFIED') return o.verification_status === 'VERIFIED' && o.is_verified === true;
+    if (orgFilter === 'REJECTED') return o.verification_status === 'REJECTED';
+    if (orgFilter === 'VERIFIED') return (o.verification_status === 'VERIFIED' || o.is_verified === true) && o.verification_status !== 'REJECTED';
+    if (orgFilter === 'PENDING') return o.verification_status !== 'REJECTED' && o.verification_status !== 'VERIFIED' && !o.is_verified;
     return o.verification_status === orgFilter;
   });
 
@@ -203,7 +204,7 @@ export default function AdminPage({ initialTab = 'overview', onTabChange }) {
                     {metrics.organizations?.total || organizations.length}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>
-                    Verified: <b>{metrics.organizations?.verified || 0}</b> &bull; Pending: <b>{metrics.organizations?.pending || 0}</b>
+                    Verified: <b>{metrics.organizations?.verified || 0}</b> &bull; Pending: <b>{metrics.organizations?.pending || 0}</b> &bull; Rejected: <b>{metrics.organizations?.rejected || 0}</b>
                   </div>
                 </CardContent>
               </Card>
@@ -329,8 +330,9 @@ export default function AdminPage({ initialTab = 'overview', onTabChange }) {
                     </thead>
                     <tbody>
                       {filteredOrgs.map((org) => {
-                        const isPending = org.verification_status === 'PENDING' || org.is_verified === false;
-                        const isVerified = org.verification_status === 'VERIFIED' && org.is_verified === true;
+                        const isRejected = org.verification_status === 'REJECTED';
+                        const isVerified = (org.verification_status === 'VERIFIED' || org.is_verified === true) && !isRejected;
+                        const isPending = !isVerified && !isRejected;
 
                         return (
                           <tr key={org.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -353,7 +355,7 @@ export default function AdminPage({ initialTab = 'overview', onTabChange }) {
                             <td style={{ padding: '0.65rem 0.5rem' }}>
                               {isVerified && <Badge variant="success">Verified</Badge>}
                               {isPending && <Badge variant="warning">Pending Review</Badge>}
-                              {org.verification_status === 'REJECTED' && <Badge variant="destructive">Rejected</Badge>}
+                              {isRejected && <Badge variant="destructive">Rejected</Badge>}
                             </td>
                             <td style={{ padding: '0.65rem 0.5rem', textAlign: 'right' }}>
                               <div style={{ display: 'inline-flex', gap: '0.4rem' }}>

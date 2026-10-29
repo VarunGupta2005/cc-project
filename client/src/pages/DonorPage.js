@@ -58,6 +58,9 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
 
   const donorId = session?.user?.id || '11111111-1111-1111-1111-111111111111';
 
+  const isFacilityRejected = session?.org?.verification_status === 'REJECTED';
+  const isFacilityPending = session?.org && !session?.org?.is_verified && session?.org?.verification_status !== 'VERIFIED' && !isFacilityRejected;
+
   useEffect(() => {
     if (initialSegment) {
       setActiveSegment(initialSegment);
@@ -114,6 +117,15 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
 
   const handlePostFood = async (e) => {
     e.preventDefault();
+    if (isFacilityRejected) {
+      setStatusMsg({ type: 'error', text: 'Facility Suspended − Food broadcasting privileges revoked by compliance admin.' });
+      return;
+    }
+    if (isFacilityPending) {
+      setStatusMsg({ type: 'error', text: 'Facility Audit Pending − Cannot broadcast surplus food until approved by administrator.' });
+      return;
+    }
+
     setSubmitting(true);
     setStatusMsg(null);
 
@@ -276,7 +288,42 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                 </div>
               )}
 
-              <form onSubmit={handlePostFood}>
+              {isFacilityRejected ? (
+                <div style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: 'var(--radius)',
+                  padding: '2.5rem 1.5rem',
+                  textAlign: 'center',
+                  margin: '1rem 0'
+                }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🚫</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--destructive-text)' }}>
+                    Facility Suspended − Food broadcasting privileges revoked by compliance admin.
+                  </div>
+                  <p style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', marginTop: '0.5rem', maxWidth: '520px', margin: '0.5rem auto 0', lineHeight: 1.5 }}>
+                    Your commercial establishment has failed hygiene, compliance, or identity audit checks and is strictly debarred from releasing food into the network.
+                  </p>
+                </div>
+              ) : isFacilityPending ? (
+                <div style={{
+                  backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  borderRadius: 'var(--radius)',
+                  padding: '2.5rem 1.5rem',
+                  textAlign: 'center',
+                  margin: '1rem 0'
+                }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>⏳</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f59e0b' }}>
+                    Facility Verification Pending Review
+                  </div>
+                  <p style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', marginTop: '0.5rem', maxWidth: '520px', margin: '0.5rem auto 0', lineHeight: 1.5 }}>
+                    Your facility registration is queued for platform compliance auditing. Food broadcasting will be enabled automatically once your profile is approved by an administrator.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handlePostFood}>
                 <div className="form-group">
                   <label className="form-label">
                     <span>Food Description & Dietary Details</span>
@@ -492,6 +539,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                   <span>{submitting ? 'Broadcasting Batch...' : 'Broadcast Surplus Food Batch'}</span>
                 </Button>
               </form>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

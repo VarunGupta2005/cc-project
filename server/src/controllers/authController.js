@@ -37,9 +37,9 @@ export async function register(req, res, next) {
       const declaredCapacity = parseFloat(organization.capacity_kg) || 50.0;
 
       const orgRes = await query(
-        `INSERT INTO organizations (user_id, name, org_type, latitude, longitude, capacity_kg, available_capacity_kg, is_verified)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, name, org_type, latitude, longitude, capacity_kg, available_capacity_kg, is_verified`,
+        `INSERT INTO organizations (user_id, name, org_type, latitude, longitude, capacity_kg, available_capacity_kg, is_verified, verification_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING id, name, org_type, latitude, longitude, capacity_kg, available_capacity_kg, is_verified, verification_status`,
         [
           newUser.id,
           organization.name,
@@ -49,6 +49,7 @@ export async function register(req, res, next) {
           declaredCapacity,
           declaredCapacity,
           shouldAutoVerify,
+          shouldAutoVerify ? 'VERIFIED' : 'PENDING',
         ]
       );
       createdOrg = orgRes.rows[0];
@@ -94,7 +95,9 @@ export async function login(req, res, next) {
               COALESCE(o1.name, o2.name) as org_name,
               COALESCE(o1.latitude, o2.latitude) as latitude,
               COALESCE(o1.longitude, o2.longitude) as longitude,
-              COALESCE(o1.capacity_kg, o2.capacity_kg) as capacity_kg
+              COALESCE(o1.capacity_kg, o2.capacity_kg) as capacity_kg,
+              COALESCE(o1.verification_status, o2.verification_status, 'PENDING') as verification_status,
+              COALESCE(o1.is_verified, o2.is_verified, false) as is_verified
        FROM users u
        LEFT JOIN organizations o1 ON o1.user_id = u.id
        LEFT JOIN organizations o2 ON o2.id = u.organization_id
@@ -136,6 +139,8 @@ export async function login(req, res, next) {
             latitude: user.latitude,
             longitude: user.longitude,
             capacity_kg: user.capacity_kg,
+            verification_status: user.verification_status,
+            is_verified: user.is_verified,
           }
         : null,
     });
@@ -148,9 +153,16 @@ export async function getProfile(req, res, next) {
   try {
     const userRes = await query(
       `SELECT u.id, u.email, u.role, u.full_name, u.phone,
-              o.id as org_id, o.name as org_name, o.latitude, o.longitude, o.capacity_kg
+              COALESCE(o1.id, o2.id) as org_id,
+              COALESCE(o1.name, o2.name) as org_name,
+              COALESCE(o1.latitude, o2.latitude) as latitude,
+              COALESCE(o1.longitude, o2.longitude) as longitude,
+              COALESCE(o1.capacity_kg, o2.capacity_kg) as capacity_kg,
+              COALESCE(o1.verification_status, o2.verification_status, 'PENDING') as verification_status,
+              COALESCE(o1.is_verified, o2.is_verified, false) as is_verified
        FROM users u
-       LEFT JOIN organizations o ON o.user_id = u.id
+       LEFT JOIN organizations o1 ON o1.user_id = u.id
+       LEFT JOIN organizations o2 ON o2.id = u.organization_id
        WHERE u.id = $1`,
       [req.user.id]
     );
@@ -159,7 +171,27 @@ export async function getProfile(req, res, next) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: userRes.rows[0] });
+    const row = userRes.rows[0];
+    res.json({
+      user: {
+        id: row.id,
+        email: row.email,
+        role: row.role,
+        full_name: row.full_name,
+        phone: row.phone,
+      },
+      organization: row.org_id
+        ? {
+            id: row.org_id,
+            name: row.org_name,
+            latitude: row.latitude,
+            longitude: row.longitude,
+            capacity_kg: row.capacity_kg,
+            verification_status: row.verification_status,
+            is_verified: row.is_verified,
+          }
+        : null,
+    });
   } catch (err) {
     next(err);
   }

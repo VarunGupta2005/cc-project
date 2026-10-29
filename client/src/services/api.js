@@ -54,6 +54,15 @@ export function clearSession() {
   localStorage.removeItem('rg_org');
 }
 
+export async function getProfile(token) {
+  const res = await fetch(`${API_BASE}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch user profile');
+  return data;
+}
+
 export async function fetchNearbyListings(lat = 12.9716, lng = 77.5946, radius = 15) {
   const res = await fetch(`${API_BASE}/api/listings/nearby?lat=${lat}&lng=${lng}&radius_km=${radius}`);
   if (!res.ok) throw new Error('Failed to fetch nearby listings');

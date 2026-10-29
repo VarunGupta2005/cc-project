@@ -155,11 +155,7 @@ export default function AuthPage({ onLoginSuccess }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
                   {/* Role 1: Food Producer */}
                   <div
-                    onClick={() => {
-                      setRole('DONOR');
-                      setEmail('donor@grandhotel.com');
-                      setPassword('password123');
-                    }}
+                    onClick={() => setRole('DONOR')}
                     style={{
                       padding: '0.75rem',
                       borderRadius: 'var(--radius)',
@@ -180,11 +176,7 @@ export default function AuthPage({ onLoginSuccess }) {
 
                   {/* Role 2: Food Consumer */}
                   <div
-                    onClick={() => {
-                      setRole('SHELTER');
-                      setEmail('director@hopehaven.org');
-                      setPassword('password123');
-                    }}
+                    onClick={() => setRole('SHELTER')}
                     style={{
                       padding: '0.75rem',
                       borderRadius: 'var(--radius)',
@@ -205,11 +197,7 @@ export default function AuthPage({ onLoginSuccess }) {
 
                   {/* Role 3: Fleet Courier / Rider */}
                   <div
-                    onClick={() => {
-                      setRole('RIDER');
-                      setEmail('rider@hopehaven.org');
-                      setPassword('password123');
-                    }}
+                    onClick={() => setRole('RIDER')}
                     style={{
                       padding: '0.75rem',
                       borderRadius: 'var(--radius)',
@@ -308,52 +296,17 @@ export default function AuthPage({ onLoginSuccess }) {
                 </Button>
               </form>
 
-              {/* Quick 1-Click Demo Accounts */}
-              <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.65rem' }}>
-                  ⚡ Quick Demo Evaluator Logins:
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickLogin('donor@grandhotel.com')}
-                    style={{ fontSize: '0.75rem', justifyContent: 'flex-start' }}
-                  >
-                    <Utensils size={13} />
-                    <span>Grand Palace (Donor)</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickLogin('director@hopehaven.org')}
-                    style={{ fontSize: '0.75rem', justifyContent: 'flex-start' }}
-                  >
-                    <Building2 size={13} />
-                    <span>Hope Haven (Shelter)</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickLogin('rider@hopehaven.org')}
-                    style={{ fontSize: '0.75rem', justifyContent: 'flex-start' }}
-                  >
-                    <Bike size={13} />
-                    <span>Vikram Singh (Rider)</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickLogin('admin@rescuegrid.org')}
-                    style={{ fontSize: '0.75rem', justifyContent: 'flex-start' }}
-                  >
-                    <ShieldCheck size={13} />
-                    <span>RescueGrid (Admin)</span>
-                  </Button>
-                </div>
+              {/* Platform Administrator Access Shortcut */}
+              <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickLogin('admin@rescuegrid.org')}
+                  style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)' }}
+                >
+                  <ShieldCheck size={14} />
+                  <span>Fill Platform Admin Login (admin@rescuegrid.org)</span>
+                </Button>
               </div>
             </div>
           ) : (

@@ -103,32 +103,12 @@ CREATE INDEX IF NOT EXISTS idx_requests_org_status ON recipient_requests(org_id,
 CREATE INDEX IF NOT EXISTS idx_requests_needed_by ON recipient_requests(needed_by);
 
 -- =============================================================
--- SEED DATA (Default Accounts for Instant Testing & Demo)
--- Password for all seed users is 'password123'
+-- SEED DATA (Root Platform Admin)
+-- Password: password123
 -- Hashed using standard bcrypt
 -- =============================================================
 
 INSERT INTO users (id, email, password_hash, role, full_name, phone)
 VALUES 
-    ('11111111-1111-1111-1111-111111111111', 'donor@grandhotel.com', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'DONOR', 'Grand Palace Hotel Kitchen', '+91 9876543210'),
-    ('22222222-2222-2222-2222-222222222222', 'mess@univhostel.edu', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'DONOR', 'University Central Hostel Mess', '+91 9876543211'),
-    ('33333333-3333-3333-3333-333333333333', 'director@hopehaven.org', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'SHELTER', 'Hope Haven Children Home', '+91 9876543212'),
-    ('44444444-4444-4444-4444-444444444444', 'care@citykitchen.org', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'SHELTER', 'City Center Night Shelter', '+91 9876543213'),
-    ('55555555-5555-5555-5555-555555555555', 'courier@rescuegrid.org', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'COURIER', 'Ravi Kumar (Volunteer Driver)', '+91 9876543214')
+    ('77777777-7777-7777-7777-777777777777', 'admin@rescuegrid.org', '$2a$10$9I/3ggJo4yGkDK0ZyqyhW.1RiLk7mmvvp7yUX3TXiC2hUrLlz0wtW', 'ADMIN', 'System Operations Admin', '+91 9876543200')
 ON CONFLICT (email) DO NOTHING;
-
--- Seed Verified Organizations with sample coordinates (e.g. Bangalore center / Indiranagar / Koramangala coords)
-INSERT INTO organizations (id, user_id, name, org_type, latitude, longitude, capacity_kg, is_verified)
-VALUES
-    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'Grand Palace Banquet Hall', 'HOTEL', 12.9716, 77.5946, 500.0, TRUE),
-    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '22222222-2222-2222-2222-222222222222', 'Campus Hostel Dining Hall', 'HOSTEL', 12.9780, 77.5990, 300.0, TRUE),
-    ('cccccccc-cccc-cccc-cccc-cccccccccccc', '33333333-3333-3333-3333-333333333333', 'Hope Haven Shelter', 'SHELTER', 12.9800, 77.6050, 100.0, TRUE),
-    ('dddddddd-dddd-dddd-dddd-dddddddddddd', '44444444-4444-4444-4444-444444444444', 'City Care Relief Center', 'COMMUNITY_KITCHEN', 12.9650, 77.5850, 150.0, TRUE)
-ON CONFLICT DO NOTHING;
-
--- Seed Active Recipient Requests for Verified Shelters
-INSERT INTO recipient_requests (id, org_id, quantity_kg, category, dietary_type, needed_by, status)
-VALUES
-    ('11112222-3333-4444-5555-666677778888', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 30.0, 'COOKED_MEAL', 'VEG', CURRENT_TIMESTAMP + INTERVAL '6 hours', 'ACTIVE'),
-    ('22223333-4444-5555-6666-777788889999', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 50.0, 'COOKED_MEAL', 'ANY', CURRENT_TIMESTAMP + INTERVAL '8 hours', 'ACTIVE')
-ON CONFLICT DO NOTHING;
