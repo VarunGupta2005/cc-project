@@ -365,6 +365,21 @@ export async function claimListing(req, res, next) {
         [newStatus, shelterId, remainingKg, id]
       );
 
+      // Clean up / cancel any stale unfulfilled allocations for this shelter on this listing
+      await query(
+        `UPDATE allocations 
+         SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP 
+         WHERE listing_id = $1 AND shelter_id = $2 AND status IN ('RESERVED', 'ASSIGNED')`,
+        [id, shelterId]
+      );
+      await query(
+        `UPDATE delivery_assignments 
+         SET status = 'CANCELLED', notes = 'Superseded by new claim'
+         WHERE allocation_id IN (SELECT id FROM allocations WHERE listing_id = $1 AND shelter_id = $2 AND status = 'CANCELLED')
+           AND status IN ('ASSIGNED', 'ACCEPTED')`,
+        [id, shelterId]
+      );
+
       // Create durable allocation record for multi-portion tracking
       const allocRes = await query(
         `INSERT INTO allocations (listing_id, shelter_id, allocated_kg, status)
@@ -616,21 +631,21 @@ export async function cancelClaimListing(req, res, next) {
       );
     }
 
-    // Invalidate allocation and active assignments if applicable
-    if (currentAlloc) {
-      await query(
-        `UPDATE allocations 
-         SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $1`,
-        [currentAlloc.id]
-      );
-      await query(
-        `UPDATE delivery_assignments 
-         SET status = 'CANCELLED', notes = 'Claim cancelled by shelter before pickup' 
-         WHERE allocation_id = $1 AND status IN ('ASSIGNED', 'ACCEPTED')`,
-        [currentAlloc.id]
-      );
-    }
+    // Invalidate ALL active allocations and assignments for this shelter on this listing
+    await query(
+      `UPDATE allocations 
+       SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP 
+       WHERE listing_id = $1 AND (shelter_id = $2 OR $2::uuid IS NULL) AND status IN ('RESERVED', 'ASSIGNED')`,
+      [id, shelterId || null]
+    );
+    await query(
+      `UPDATE delivery_assignments 
+       SET status = 'CANCELLED', notes = 'Claim cancelled by shelter before pickup' 
+       WHERE allocation_id IN (
+         SELECT id FROM allocations WHERE listing_id = $1 AND (shelter_id = $2 OR $2::uuid IS NULL) AND status = 'CANCELLED'
+       ) AND status IN ('ASSIGNED', 'ACCEPTED')`,
+      [id, shelterId || null]
+    );
 
     // Restore shelter available capacity if known
     const orgToRestore = shelterId || audit?.ngo_id;
@@ -730,11 +745,12 @@ export async function getAllListings(req, res, next) {
     const dbRes = await query(
       `SELECT f.*, u.full_name as donor_name, o.name as claimed_by_name,
               CASE 
-                WHEN $1::uuid IS NOT NULL AND (f.claimed_by = $1::uuid OR alloc.allocation_id IS NOT NULL) THEN h.verification_token
+                WHEN $1::uuid IS NOT NULL AND (f.claimed_by = $1::uuid OR alloc.allocation_id IS NOT NULL) 
+                  THEN COALESCE(alloc.pickup_otp, h.verification_token)
                 ELSE NULL 
               END as verification_code,
               alloc.allocation_id, alloc.allocated_kg, alloc.allocation_status,
-              alloc.assignment_id, alloc.rider_id, alloc.assignment_status,
+              alloc.assignment_id, alloc.rider_id, alloc.assignment_status, alloc.pickup_otp,
               alloc.rider_name, alloc.rider_phone,
               (
                 SELECT a.allocated_kg 
@@ -757,7 +773,7 @@ export async function getAllListings(req, res, next) {
        ) h ON true
        LEFT JOIN LATERAL (
          SELECT a.id as allocation_id, a.allocated_kg, a.status as allocation_status,
-                d.id as assignment_id, d.rider_id, d.status as assignment_status,
+                d.id as assignment_id, d.rider_id, d.status as assignment_status, d.pickup_otp,
                 ru.full_name as rider_name, ru.phone as rider_phone
          FROM allocations a
          LEFT JOIN delivery_assignments d ON d.allocation_id = a.id AND d.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'COMPLETED')

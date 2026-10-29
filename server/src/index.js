@@ -145,6 +145,28 @@ async function bootstrap() {
       console.warn('[Bootstrap Warning] Recipient requests migration check:', reqMigErr.message);
     }
 
+    // 7b. Clean up any orphaned duplicate allocations where another allocation for the same listing/shelter was already picked up
+    try {
+      const cleanOrphanRes = await pool.query(`
+        UPDATE allocations a
+        SET status = 'CANCELLED'
+        WHERE a.status IN ('RESERVED', 'ASSIGNED')
+          AND EXISTS (
+            SELECT 1 FROM allocations a2
+            WHERE a2.listing_id = a.listing_id 
+              AND a2.shelter_id = a.shelter_id
+              AND a2.id != a.id
+              AND a2.status IN ('IN_TRANSIT', 'DELIVERED')
+          )
+        RETURNING id
+      `);
+      if (cleanOrphanRes.rows.length > 0) {
+        console.log(`[Bootstrap] Cleaned up ${cleanOrphanRes.rows.length} orphaned duplicate allocations.`);
+      }
+    } catch (orphanErr) {
+      console.warn('[Bootstrap Warning] Orphan allocation cleanup check:', orphanErr.message);
+    }
+
     // 8. Start HTTP & WebSocket Server
     server.listen(PORT, () => {
       console.log(`[RescueGrid API] Server running on port ${PORT}`);

@@ -81,6 +81,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
   const [cancelError, setCancelError] = useState(null);
 
   // Active Food Demands / Requirements State
+  const [deliveryMsg, setDeliveryMsg] = useState(null);
   const [myRequests, setMyRequests] = useState([]);
   const [reqQuantity, setReqQuantity] = useState('30');
   const [reqCategories, setReqCategories] = useState(['COOKED_MEAL', 'PACKAGED']);
@@ -337,12 +338,12 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     setClaimingLoading(true);
     setClaimError(null);
     try {
-      const data = await claimFoodListing(claimingListing.id, activeShelterId, session?.token, claimKg);
-      const token = data.handover?.verification_code || data.verification_token;
-      if (token) {
-        onOpenTokenModal(token, claimingListing.id);
-      }
+      await claimFoodListing(claimingListing.id, activeShelterId, session?.token, claimKg);
       setClaimingListing(null);
+      setDeliveryMsg({
+        type: 'success',
+        text: 'Food batch claimed successfully! Assign a fleet rider below or collect directly.',
+      });
       await loadData();
       setActiveSegment('deliveries');
     } catch (err) {
@@ -1220,6 +1221,25 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
               Active Inbound Deliveries ({activeDeliveries.length})
             </div>
 
+            {deliveryMsg && (
+              <div
+                className={`alert-box ${deliveryMsg.type === 'success' ? 'alert-box--success' : 'alert-box--error'}`}
+                style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <CheckCircle2 size={16} />
+                  <span>{deliveryMsg.text}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMsg(null)}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0.2rem' }}
+                >
+                  <XCircle size={15} />
+                </button>
+              </div>
+            )}
+
             {activeDeliveries.length === 0 ? (
               <Card style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
                 <div style={{
@@ -1332,10 +1352,30 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                               <Bike size={16} />
                             </div>
                             <div>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)' }}>
-                                Assigned Rider: {delivery.rider_name || 'Rider Assigned'}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                                  Assigned Rider: {delivery.rider_name || 'Rider Assigned'}
+                                </span>
+                                {(delivery.pickup_otp || delivery.verification_code) && (
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    padding: '0.15rem 0.45rem',
+                                    backgroundColor: 'var(--card)',
+                                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                                    borderRadius: '5px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    fontFamily: 'monospace',
+                                    color: '#38bdf8',
+                                    letterSpacing: '0.08rem',
+                                  }}>
+                                    Pickup OTP: {delivery.pickup_otp || delivery.verification_code}
+                                  </span>
+                                )}
                               </div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
                                 {delivery.rider_phone ? `Phone: ${delivery.rider_phone} • ` : ''}
                                 Status: <span style={{ color: '#38bdf8', fontWeight: 600 }}>{delivery.assignment_status || 'ASSIGNED'}</span>
                               </div>
@@ -1414,11 +1454,31 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                               <Bike size={16} />
                             </div>
                             <div>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)' }}>
-                                Rider Not Dispatched Yet
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                                  Rider Not Dispatched Yet
+                                </span>
+                                {delivery.verification_code && (
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    padding: '0.15rem 0.45rem',
+                                    backgroundColor: 'var(--card)',
+                                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                                    borderRadius: '5px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    fontFamily: 'monospace',
+                                    color: '#38bdf8',
+                                    letterSpacing: '0.08rem',
+                                  }}>
+                                    Direct Pickup OTP: {delivery.verification_code}
+                                  </span>
+                                )}
                               </div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
-                                Dispatch an authorized shelter rider to retrieve this parcel.
+                              <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
+                                Assign a fleet rider below or present this direct pickup code at the donor kitchen.
                               </div>
                             </div>
                           </div>
@@ -1452,7 +1512,9 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                         <span>
                           {delivery.assignment_id
                             ? "Authorized pickup OTP pass is active on the assigned rider's terminal. Donor kitchen verifies code at collection."
-                            : 'Pickup OTP pass will be generated exclusively for the assigned rider upon dispatch.'}
+                            : delivery.verification_code
+                            ? "Direct self-pickup pass active above, or assign a fleet rider to delegate collection."
+                            : "Pickup OTP pass will be generated exclusively for the assigned rider upon dispatch."}
                         </span>
                       </div>
 

@@ -904,7 +904,7 @@ export default function DonorPage({ session, initialSegment = 'broadcast', onSeg
                                 </Button>
                               </div>
                             </div>
-                          ) : (isClaimed || (isPartiallyClaimed && pendingAllocations.length === 0 && inTransitAllocations.length === 0 && allocations.every(a => a.status !== 'DELIVERED'))) ? (
+                          ) : (allocations.length === 0 && isClaimed) ? (
                             // Legacy single-claim batch or fallback handover gate
                             <div className="otp-pass-card" style={{ marginTop: '0.5rem', textAlign: 'left' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 600, fontSize: '0.84rem' }}>
