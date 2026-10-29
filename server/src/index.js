@@ -185,6 +185,21 @@ async function bootstrap() {
       console.warn('[Bootstrap Warning] Org name cleanup check:', nameFixErr.message);
     }
 
+    // 7d. Auto-expire any past-due listings in PostgreSQL
+    try {
+      const expireSweepRes = await pool.query(`
+        UPDATE food_listings
+        SET status = 'EXPIRED'
+        WHERE status IN ('AVAILABLE', 'PARTIALLY_CLAIMED') AND expires_at < CURRENT_TIMESTAMP
+        RETURNING id
+      `);
+      if (expireSweepRes.rows.length > 0) {
+        console.log(`[Bootstrap] Swept and expired ${expireSweepRes.rows.length} past-due food listings.`);
+      }
+    } catch (sweepErr) {
+      console.warn('[Bootstrap Warning] Expired listings sweep:', sweepErr.message);
+    }
+
     // 8. Start HTTP & WebSocket Server
     server.listen(PORT, () => {
       console.log(`[RescueGrid API] Server running on port ${PORT}`);

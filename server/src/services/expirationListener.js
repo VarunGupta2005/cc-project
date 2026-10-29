@@ -7,7 +7,7 @@ export async function reconcileExpiredListings(io) {
     const expiredRes = await query(
       `UPDATE food_listings
        SET status = 'EXPIRED'
-       WHERE status = 'AVAILABLE' AND expires_at < CURRENT_TIMESTAMP
+       WHERE status IN ('AVAILABLE', 'PARTIALLY_CLAIMED') AND expires_at < CURRENT_TIMESTAMP
        RETURNING id`
     );
 
@@ -51,7 +51,7 @@ export async function startExpirationListener(io) {
           const updateRes = await query(
             `UPDATE food_listings 
              SET status = 'EXPIRED' 
-             WHERE id = $1 AND status = 'AVAILABLE'
+             WHERE id = $1 AND status IN ('AVAILABLE', 'PARTIALLY_CLAIMED')
              RETURNING id, food_type, donor_id`,
             [listingId]
           );

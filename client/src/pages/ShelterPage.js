@@ -186,8 +186,12 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
 
       setAvailableListings(nearbyData.listings || []);
 
+      const now = new Date();
       const activeAll = (allData.listings || []).filter(
-        (l) => l.status === 'AVAILABLE' || l.status === 'PARTIALLY_CLAIMED'
+        (l) =>
+          (l.status === 'AVAILABLE' || l.status === 'PARTIALLY_CLAIMED') &&
+          (!l.expires_at || new Date(l.expires_at) > now) &&
+          (l.quantity_remaining === undefined || parseFloat(l.quantity_remaining) > 0)
       );
       setAllAvailableListings(activeAll);
 
