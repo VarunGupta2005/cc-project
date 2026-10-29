@@ -75,11 +75,14 @@ CREATE TABLE IF NOT EXISTS recipient_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     quantity_kg DECIMAL(10, 2) NOT NULL,
+    quantity_claimed_kg DECIMAL(10, 2) DEFAULT 0.00,
+    quantity_remaining_kg DECIMAL(10, 2),
     category VARCHAR(50) NOT NULL DEFAULT 'COOKED_MEAL',
     dietary_type VARCHAR(50) NOT NULL DEFAULT 'ANY',
     needed_by TIMESTAMP WITH TIME ZONE NOT NULL,
     status VARCHAR(50) DEFAULT 'ACTIVE',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 6. Handover Audits Table (Chain-of-custody and legal compliance)

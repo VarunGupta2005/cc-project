@@ -24,7 +24,7 @@ export async function getAllRequests(req, res, next) {
       params.push(status);
       sql += ` AND r.status = $${params.length}`;
     } else {
-      sql += ` AND r.status = 'ACTIVE'`;
+      sql += ` AND r.status IN ('ACTIVE', 'PARTIALLY_FULFILLED')`;
     }
 
     sql += ` ORDER BY r.needed_by ASC`;
@@ -72,14 +72,15 @@ export async function createRequest(req, res, next) {
       ? category.join(',')
       : (category || 'COOKED_MEAL');
 
+    const reqKg = parseFloat(quantity_kg);
     const result = await query(
       `INSERT INTO recipient_requests 
-        (org_id, quantity_kg, category, dietary_type, needed_by, status)
-       VALUES ($1, $2, $3, $4, $5, 'ACTIVE')
+        (org_id, quantity_kg, quantity_claimed_kg, quantity_remaining_kg, category, dietary_type, needed_by, status)
+       VALUES ($1, $2, 0.00, $2, $3, $4, $5, 'ACTIVE')
        RETURNING *`,
       [
         orgId,
-        parseFloat(quantity_kg),
+        reqKg,
         catStr,
         dietary_type || 'ANY',
         neededByTime,

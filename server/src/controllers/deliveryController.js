@@ -364,14 +364,15 @@ export async function confirmDelivery(req, res, next) {
       } catch (e) {}
     }
 
-    // If recipient has active demand, mark fulfilled
+    // If recipient has active demand whose remaining needed reached 0, mark fulfilled
     const shelterOrgId = req.user?.org_id || listing.claimed_by;
     if (shelterOrgId) {
       try {
         await query(
           `UPDATE recipient_requests 
            SET status = 'FULFILLED', updated_at = CURRENT_TIMESTAMP 
-           WHERE org_id = $1 AND status = 'ACTIVE'`,
+           WHERE org_id = $1 AND status IN ('ACTIVE', 'PARTIALLY_FULFILLED')
+             AND (quantity_remaining_kg IS NOT NULL AND quantity_remaining_kg <= 0)`,
           [shelterOrgId]
         );
       } catch (reqErr) {}

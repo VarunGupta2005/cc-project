@@ -136,11 +136,12 @@ export async function createListing(req, res, next) {
     try {
       const sheltersRes = await query(
         `SELECT o.*, 
-                r.id as active_request_id, r.quantity_kg as requested_kg, 
+                r.id as active_request_id, 
+                COALESCE(r.quantity_remaining_kg, r.quantity_kg) as requested_kg, 
                 r.category as requested_category, r.dietary_type as requested_dietary,
                 r.needed_by as request_needed_by
          FROM organizations o
-         LEFT JOIN recipient_requests r ON r.org_id = o.id AND r.status = 'ACTIVE'
+         LEFT JOIN recipient_requests r ON r.org_id = o.id AND r.status IN ('ACTIVE', 'PARTIALLY_FULFILLED')
          WHERE o.org_type IN ('SHELTER', 'ORPHANAGE', 'COMMUNITY_KITCHEN')
            AND o.is_verified = TRUE
            AND (o.verification_status IS NULL OR o.verification_status = 'VERIFIED')`
@@ -416,6 +417,48 @@ export async function claimListing(req, res, next) {
       // Non-blocking for mock/simulated shelter IDs
     }
 
+    // Deduct claiming shelter's active broadcast demand requirement (if any)
+    try {
+      const activeReqRes = await query(
+        `SELECT id, quantity_kg, 
+                COALESCE(quantity_claimed_kg, 0) as quantity_claimed_kg,
+                COALESCE(quantity_remaining_kg, quantity_kg) as quantity_remaining_kg
+         FROM recipient_requests 
+         WHERE org_id = $1 AND status IN ('ACTIVE', 'PARTIALLY_FULFILLED')
+         ORDER BY needed_by ASC 
+         LIMIT 1`,
+        [shelterId]
+      );
+
+      if (activeReqRes.rows.length > 0) {
+        const activeReq = activeReqRes.rows[0];
+        const prevClaimed = parseFloat(activeReq.quantity_claimed_kg || '0');
+        const totalNeeded = parseFloat(activeReq.quantity_kg || '0');
+        const newClaimed = prevClaimed + claimedKg;
+        const newRemaining = Math.max(0, totalNeeded - newClaimed);
+        const newReqStatus = newRemaining <= 0 ? 'FULFILLED' : 'PARTIALLY_FULFILLED';
+
+        await query(
+          `UPDATE recipient_requests 
+           SET quantity_claimed_kg = $1, quantity_remaining_kg = $2, status = $3, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $4`,
+          [newClaimed, newRemaining, newReqStatus, activeReq.id]
+        );
+
+        await redisClient.publish('channel:alerts', JSON.stringify({
+          event: 'DEMAND_UPDATED',
+          orgId: shelterId,
+          requestId: activeReq.id,
+          quantity_claimed_kg: newClaimed,
+          quantity_remaining_kg: newRemaining,
+          status: newReqStatus,
+          timestamp: new Date().toISOString(),
+        }));
+      }
+    } catch (demandErr) {
+      console.warn('[Demand Decrement Warning]', demandErr.message);
+    }
+
     // Broadcast claim update to all connected WebSocket clients
     const alertMessage = JSON.stringify({
       event: claimType === 'PARTIAL' ? 'FOOD_PARTIALLY_CLAIMED' : 'FOOD_CLAIMED',
@@ -602,6 +645,48 @@ export async function cancelClaimListing(req, res, next) {
       } catch (capErr) {
         // non-blocking
       }
+
+      // Restore shelter active broadcast demand requirement if applicable
+      try {
+        const reqToRestoreRes = await query(
+          `SELECT id, quantity_kg, 
+                  COALESCE(quantity_claimed_kg, 0) as quantity_claimed_kg,
+                  COALESCE(quantity_remaining_kg, quantity_kg) as quantity_remaining_kg
+           FROM recipient_requests 
+           WHERE org_id = $1 AND status IN ('PARTIALLY_FULFILLED', 'FULFILLED')
+           ORDER BY updated_at DESC NULLS LAST, needed_by DESC 
+           LIMIT 1`,
+          [orgToRestore]
+        );
+
+        if (reqToRestoreRes.rows.length > 0) {
+          const reqItem = reqToRestoreRes.rows[0];
+          const prevClaimed = parseFloat(reqItem.quantity_claimed_kg || '0');
+          const totalNeeded = parseFloat(reqItem.quantity_kg || '0');
+          const newClaimed = Math.max(0, prevClaimed - claimedKg);
+          const newRemaining = Math.min(totalNeeded, totalNeeded - newClaimed);
+          const restoredReqStatus = newClaimed <= 0 ? 'ACTIVE' : (newRemaining <= 0 ? 'FULFILLED' : 'PARTIALLY_FULFILLED');
+
+          await query(
+            `UPDATE recipient_requests 
+             SET quantity_claimed_kg = $1, quantity_remaining_kg = $2, status = $3, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $4`,
+            [newClaimed, newRemaining, restoredReqStatus, reqItem.id]
+          );
+
+          await redisClient.publish('channel:alerts', JSON.stringify({
+            event: 'DEMAND_UPDATED',
+            orgId: orgToRestore,
+            requestId: reqItem.id,
+            quantity_claimed_kg: newClaimed,
+            quantity_remaining_kg: newRemaining,
+            status: restoredReqStatus,
+            timestamp: new Date().toISOString(),
+          }));
+        }
+      } catch (reqErr) {
+        console.warn('[Demand Restoration Warning]', reqErr.message);
+      }
     }
 
     // Re-add to Redis geospatial index with remaining TTL preserved
@@ -745,11 +830,12 @@ export async function getListingRecommendations(req, res, next) {
     // Fetch candidate verified shelters and any active requests
     const sheltersRes = await query(
       `SELECT o.*, 
-              r.id as active_request_id, r.quantity_kg as requested_kg, 
+              r.id as active_request_id, 
+              COALESCE(r.quantity_remaining_kg, r.quantity_kg) as requested_kg, 
               r.category as requested_category, r.dietary_type as requested_dietary,
               r.needed_by as request_needed_by
        FROM organizations o
-       LEFT JOIN recipient_requests r ON r.org_id = o.id AND r.status = 'ACTIVE'
+       LEFT JOIN recipient_requests r ON r.org_id = o.id AND r.status IN ('ACTIVE', 'PARTIALLY_FULFILLED')
        WHERE o.org_type IN ('SHELTER', 'ORPHANAGE', 'COMMUNITY_KITCHEN')
          AND o.is_verified = TRUE`
     );

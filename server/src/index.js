@@ -109,7 +109,43 @@ async function bootstrap() {
       console.warn('[Bootstrap Warning] Listing reconciliation check:', recErr.message);
     }
 
-    // 7. Start HTTP & WebSocket Server
+    // 7. Verify & Migrate recipient_requests schema for multi-portion demand tracking
+    try {
+      await pool.query(`
+        ALTER TABLE recipient_requests 
+        ADD COLUMN IF NOT EXISTS quantity_claimed_kg DECIMAL(10, 2) DEFAULT 0.00,
+        ADD COLUMN IF NOT EXISTS quantity_remaining_kg DECIMAL(10, 2),
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
+        UPDATE recipient_requests 
+        SET quantity_claimed_kg = 0.00 WHERE quantity_claimed_kg IS NULL;
+
+        UPDATE recipient_requests 
+        SET quantity_remaining_kg = quantity_kg - quantity_claimed_kg WHERE quantity_remaining_kg IS NULL;
+
+        -- Reconcile active demand with any currently inbound allocations
+        UPDATE recipient_requests r
+        SET quantity_claimed_kg = sub.claimed,
+            quantity_remaining_kg = GREATEST(0, r.quantity_kg - sub.claimed),
+            status = CASE 
+              WHEN (r.quantity_kg - sub.claimed) <= 0 THEN 'FULFILLED'
+              WHEN sub.claimed > 0 THEN 'PARTIALLY_FULFILLED'
+              ELSE 'ACTIVE'
+            END
+        FROM (
+          SELECT a.shelter_id, COALESCE(SUM(a.allocated_kg), 0) as claimed
+          FROM allocations a
+          WHERE a.status IN ('RESERVED', 'ASSIGNED', 'IN_TRANSIT')
+          GROUP BY a.shelter_id
+        ) sub
+        WHERE r.org_id = sub.shelter_id AND r.status IN ('ACTIVE', 'PARTIALLY_FULFILLED');
+      `);
+      console.log('[Bootstrap] Verified recipient_requests multi-portion demand schema.');
+    } catch (reqMigErr) {
+      console.warn('[Bootstrap Warning] Recipient requests migration check:', reqMigErr.message);
+    }
+
+    // 8. Start HTTP & WebSocket Server
     server.listen(PORT, () => {
       console.log(`[RescueGrid API] Server running on port ${PORT}`);
       console.log(`[RescueGrid API] Instance: ${process.env.HOSTNAME || 'localhost'}`);

@@ -51,6 +51,8 @@ export function initSocketManager(httpServer) {
         } else if (parsed.event === 'DELIVERY_UPDATE' || parsed.event === 'RIDER_ASSIGNED' || parsed.event === 'RIDER_ASSIGNMENT_CANCELLED') {
           ioInstance.emit('delivery:update', parsed);
           ioInstance.emit('rider:update', parsed);
+        } else if (parsed.event === 'DEMAND_POSTED' || parsed.event === 'DEMAND_UPDATED') {
+          ioInstance.emit('demand:update', parsed);
         }
       } catch (e) {
         console.error('[Error processing Pub/Sub message]', e);

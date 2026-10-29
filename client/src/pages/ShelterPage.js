@@ -295,6 +295,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
     socket.on('food:reopened', refreshData);
     socket.on('food:expired', refreshData);
     socket.on('delivery:update', refreshData);
+    socket.on('demand:update', refreshData);
 
     const syncTimer = setInterval(refreshData, 15000);
 
@@ -306,6 +307,7 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
       socket.off('food:reopened', refreshData);
       socket.off('food:expired', refreshData);
       socket.off('delivery:update', refreshData);
+      socket.off('demand:update', refreshData);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1060,35 +1062,96 @@ export default function ShelterPage({ session, onOpenTokenModal, initialSegment 
                 </CardDescription>
               </Card>
             ) : (
-              myRequests.map((req) => (
-                <div key={req.id} className="batch-card" style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                        {req.quantity_kg} kg &bull; {(req.category || 'COOKED_MEAL').split(',').map((c) => c.replace('_', ' ')).join(' + ')} ({req.dietary_type})
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                        Needed by: {new Date(req.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(req.needed_by).toLocaleDateString()})
-                      </div>
-                    </div>
+              myRequests.map((req) => {
+                const totalNeeded = parseFloat(req.quantity_kg || 0);
+                const claimed = parseFloat(req.quantity_claimed_kg || 0);
+                const remaining = parseFloat(
+                  req.quantity_remaining_kg !== undefined && req.quantity_remaining_kg !== null
+                    ? req.quantity_remaining_kg
+                    : Math.max(0, totalNeeded - claimed)
+                );
+                const isPartiallyFulfilled = req.status === 'PARTIALLY_FULFILLED' || (claimed > 0 && remaining > 0);
+                const isCompleted = req.status === 'FULFILLED' || remaining <= 0;
+                const percentFulfilled = totalNeeded > 0 ? Math.min(100, Math.round((claimed / totalNeeded) * 100)) : 0;
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Badge variant={req.status === 'ACTIVE' ? 'warning' : 'secondary'}>
-                        {req.status}
-                      </Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleCancelReq(req.id)}
-                        style={{ height: '28px', padding: '0 0.5rem', color: '#b91c1c' }}
-                      >
-                        <Trash2 size={13} />
-                        <span>Cancel</span>
-                      </Button>
+                return (
+                  <div key={req.id} className="batch-card" style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1, marginRight: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{
+                            fontWeight: 700,
+                            fontSize: '0.98rem',
+                            color: isPartiallyFulfilled ? '#38bdf8' : isCompleted ? '#10b981' : 'var(--foreground)'
+                          }}>
+                            {isCompleted
+                              ? `All ${totalNeeded.toFixed(1)} kg Fulfilled`
+                              : isPartiallyFulfilled
+                              ? `${remaining.toFixed(1)} kg remaining needed`
+                              : `${totalNeeded.toFixed(1)} kg needed`}
+                          </span>
+                          <span style={{ color: 'var(--muted-foreground)' }}>&bull;</span>
+                          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                            {(req.category || 'COOKED_MEAL').split(',').map((c) => c.replace('_', ' ')).join(' + ')}
+                          </span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>({req.dietary_type})</span>
+                        </div>
+
+                        {/* Progress Bar & Breakdown */}
+                        {claimed > 0 && (
+                          <div style={{ marginTop: '0.35rem' }}>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)' }}>
+                              <span style={{ color: '#10b981', fontWeight: 600 }}>{claimed.toFixed(1)} kg claimed/inbound</span> of <b>{totalNeeded.toFixed(1)} kg</b> total requirement ({percentFulfilled}%)
+                            </div>
+                            <div style={{
+                              marginTop: '0.35rem',
+                              width: '100%',
+                              maxWidth: '300px',
+                              height: '5px',
+                              backgroundColor: 'var(--secondary)',
+                              borderRadius: '3px',
+                              overflow: 'hidden',
+                            }}>
+                              <div style={{
+                                width: `${percentFulfilled}%`,
+                                height: '100%',
+                                backgroundColor: isCompleted ? '#10b981' : '#38bdf8',
+                                borderRadius: '3px',
+                                transition: 'width 0.3s ease',
+                              }} />
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.35rem' }}>
+                          Needed by: {new Date(req.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(req.needed_by).toLocaleDateString()})
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Badge variant={isCompleted ? 'success' : isPartiallyFulfilled ? 'info' : req.status === 'ACTIVE' ? 'warning' : 'secondary'}>
+                          {isCompleted
+                            ? 'Fulfilled'
+                            : isPartiallyFulfilled
+                            ? 'Partially Fulfilled'
+                            : req.status === 'ACTIVE'
+                            ? 'Active • Open'
+                            : req.status}
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCancelReq(req.id)}
+                          style={{ height: '28px', padding: '0 0.5rem', color: '#b91c1c' }}
+                        >
+                          <Trash2 size={13} />
+                          <span>Cancel</span>
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </TabsContent>
