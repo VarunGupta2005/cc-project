@@ -13,6 +13,7 @@ import LocationPickerMap from '../components/LocationPickerMap';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { updateOrganizationProfile } from '../services/api';
 
 export default function AccountPage({ session, onLogout, onUpdateSession }) {
@@ -63,9 +64,10 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
   const roleMeta = getRoleMeta();
   const RoleIcon = roleMeta.icon;
 
+  const [facilityName, setFacilityName] = useState(org.name || user.full_name || '');
   const [lat, setLat] = useState(parseFloat(org.latitude) || 12.9716);
   const [lng, setLng] = useState(parseFloat(org.longitude) || 77.5946);
-  const [address, setAddress] = useState(org.name || '');
+  const [resolvedAddress, setResolvedAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -81,32 +83,33 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
       }
     }
     if (org.name) {
-      setAddress(org.name);
+      setFacilityName(org.name);
+    } else if (user.full_name) {
+      setFacilityName(user.full_name);
     }
-  }, [org.latitude, org.longitude, org.name]);
+  }, [org.latitude, org.longitude, org.name, user.full_name]);
 
   const handleSaveLocation = async () => {
     setSaving(true);
     setSaveError(null);
     try {
       let updatedOrg = null;
+      const cleanName = facilityName.trim() || org.name || user.full_name || 'My Facility';
       if (org.id) {
         const updatePayload = {
           latitude: lat,
           longitude: lng,
+          name: cleanName,
         };
-        if (address) {
-          updatePayload.name = address;
-        }
         const res = await updateOrganizationProfile(org.id, updatePayload);
         updatedOrg = res?.organization;
       }
 
-      // Update localStorage session org coordinates
+      // Update localStorage session org coordinates and name
       const storedOrg = JSON.parse(localStorage.getItem('rg_org') || '{}');
       storedOrg.latitude = lat;
       storedOrg.longitude = lng;
-      if (address) storedOrg.name = address;
+      storedOrg.name = cleanName;
       if (updatedOrg) {
         Object.assign(storedOrg, updatedOrg);
       }
@@ -119,7 +122,7 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
           ...storedOrg,
           latitude: lat,
           longitude: lng,
-          ...(address ? { name: address } : {}),
+          name: cleanName,
         },
       };
 
@@ -130,7 +133,7 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
-      setSaveError(err.message || 'Failed to update organization location in PostgreSQL');
+      setSaveError(err.message || 'Failed to update organization profile in PostgreSQL');
     } finally {
       setSaving(false);
     }
@@ -162,7 +165,7 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <CardTitle style={{ fontSize: '1.25rem' }}>
-                    {org.name || user.full_name || 'My Facility'}
+                    {facilityName || org.name || user.full_name || 'My Facility'}
                   </CardTitle>
                   <Badge variant="success">
                     <CheckCircle2 size={11} />
@@ -247,9 +250,9 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
                   <MapPin size={18} />
                 </div>
                 <div>
-                  <CardTitle>Physical Location & Entrance Coordinates</CardTitle>
+                  <CardTitle>Facility Profile & Entrance Coordinates</CardTitle>
                   <CardDescription>
-                    Drag the pin to adjust your facility entrance for dispatch and pickups.
+                    Update your facility name and adjust physical entrance pin for couriers.
                   </CardDescription>
                 </div>
               </div>
@@ -260,7 +263,7 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
                 onClick={handleSaveLocation}
               >
                 <Save size={13} />
-                <span>{saving ? 'Saving...' : 'Save Location Pin'}</span>
+                <span>{saving ? 'Saving...' : 'Save Profile & Location'}</span>
               </Button>
             </div>
           </CardHeader>
@@ -281,7 +284,7 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
                 gap: '0.4rem',
               }}>
                 <CheckCircle2 size={15} />
-                <span>Location pin updated successfully!</span>
+                <span>Facility profile and location updated successfully!</span>
               </div>
             )}
 
@@ -304,6 +307,22 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
               </div>
             )}
 
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label" style={{ marginBottom: '0.4rem', display: 'block' }}>
+                Facility / Organization Name
+              </label>
+              <Input
+                type="text"
+                placeholder={role === 'DONOR' ? 'e.g. Grand Palace Hotel' : 'e.g. Hope Haven Shelter'}
+                value={facilityName}
+                onChange={(e) => setFacilityName(e.target.value)}
+                style={{ maxWidth: '420px' }}
+              />
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.35rem' }}>
+                This name is displayed across your header, profile badge, and food distribution listings.
+              </div>
+            </div>
+
             <LocationPickerMap
               initialLat={lat}
               initialLng={lng}
@@ -311,14 +330,14 @@ export default function AccountPage({ session, onLogout, onUpdateSession }) {
               onLocationSelect={(newLat, newLng, newAddress) => {
                 setLat(newLat);
                 setLng(newLng);
-                if (newAddress) setAddress(newAddress);
+                if (newAddress) setResolvedAddress(newAddress);
               }}
               height="220px"
             />
 
-            {address && (
+            {resolvedAddress && (
               <div style={{ fontSize: '0.78rem', color: 'var(--muted-foreground)', marginTop: '0.5rem' }}>
-                Resolved Address: <b>{address}</b>
+                Resolved Gate Address: <b>{resolvedAddress}</b>
               </div>
             )}
           </CardContent>

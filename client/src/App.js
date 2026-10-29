@@ -277,7 +277,9 @@ export default function App() {
                 <ShieldCheck size={14} color="#a855f7" />
               )}
               <span style={{ fontWeight: '600', color: 'var(--foreground)' }}>
-                {session?.org?.name || session?.user?.full_name}
+                {role === 'RIDER'
+                  ? (session?.user?.full_name || 'Fleet Courier')
+                  : (session?.org?.name || session?.user?.full_name || 'RescueGrid Facility')}
               </span>
             </div>
           </div>

@@ -167,6 +167,24 @@ async function bootstrap() {
       console.warn('[Bootstrap Warning] Orphan allocation cleanup check:', orphanErr.message);
     }
 
+    // 7c. Clean up any organization names corrupted by road address reverse geocoding
+    try {
+      const fixNamesRes = await pool.query(`
+        UPDATE organizations o
+        SET name = u.full_name
+        FROM users u
+        WHERE o.user_id = u.id 
+          AND (o.name LIKE '%9 m wide road%' OR o.name LIKE '%MD0308%' OR o.name LIKE '%Gird Tahsil%')
+          AND u.full_name IS NOT NULL AND u.full_name != ''
+        RETURNING o.id, o.name
+      `);
+      if (fixNamesRes.rows.length > 0) {
+        console.log(`[Bootstrap] Restored ${fixNamesRes.rows.length} organization names from user profile.`);
+      }
+    } catch (nameFixErr) {
+      console.warn('[Bootstrap Warning] Org name cleanup check:', nameFixErr.message);
+    }
+
     // 8. Start HTTP & WebSocket Server
     server.listen(PORT, () => {
       console.log(`[RescueGrid API] Server running on port ${PORT}`);

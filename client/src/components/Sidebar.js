@@ -21,7 +21,9 @@ import { Button } from './ui/button';
 
 export default function Sidebar({ activeTab, setActiveTab, session, onLogout }) {
   const role = session?.user?.role || 'DONOR';
-  const orgName = session?.org?.name || session?.user?.full_name || 'RescueGrid Node';
+  const displayName = role === 'RIDER'
+    ? (session?.user?.full_name || 'Fleet Courier')
+    : (session?.org?.name || session?.user?.full_name || 'RescueGrid Node');
 
   const getRoleBadge = () => {
     switch (role) {
@@ -296,7 +298,7 @@ export default function Sidebar({ activeTab, setActiveTab, session, onLogout }) 
             )}
           </div>
           <div className="user-info">
-            <div className="user-name" title={orgName}>{orgName}</div>
+            <div className="user-name" title={displayName}>{displayName}</div>
             <div className="user-role">{roleMeta.label}</div>
           </div>
         </div>
